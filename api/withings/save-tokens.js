@@ -11,25 +11,14 @@ export default async function handler(req, res) {
   }
 
   const authHeader = req.headers.authorization
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Missing or invalid authorization header' })
-  }
+  if (!authHeader) return res.status(401).json({ error: 'Unauthorized' })
 
   const token = authHeader.split(' ')[1]
+  const { data: { user } } = await supabase.auth.getUser(token)
 
-  // Verify the user using Supabase
-  const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-
-  if (authError || !user) {
-    return res.status(401).json({ error: 'Invalid or expired token' })
-  }
+  if (!user) return res.status(401).json({ error: 'Invalid user' })
 
   const { access_token, refresh_token, withings_user_id } = req.body
-
-  if (!access_token || !refresh_token || !withings_user_id) {
-    return res.status(400).json({ error: 'Missing required fields' })
-  }
 
   try {
     const { error } = await supabase.from('withings_tokens').upsert({
@@ -37,17 +26,17 @@ export default async function handler(req, res) {
       access_token,
       refresh_token,
       withings_user_id,
-      updated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     })
 
     if (error) {
-      console.error('Supabase error:', error)
+      console.error('Supabase upsert error:', error)
       return res.status(500).json({ error: 'Failed to save tokens', details: error.message })
     }
 
     return res.status(200).json({ success: true })
   } catch (error) {
-    console.error('Server error:', error)
-    return res.status(500).json({ error: 'Internal server error' })
+    console.error(error)
+    return res.status(500).json({ error: 'Server error' })
   }
 }
