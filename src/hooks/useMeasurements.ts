@@ -10,7 +10,7 @@ export interface Measurement {
   body_fat: number | null
   height_inches: number | null
   gender: "male" | "female" | null
-  created_at?: string
+  created_at: string
 }
 
 export function useMeasurements() {
