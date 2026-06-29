@@ -28,7 +28,7 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     const { error } = await updateProfile({
       name: formData.name,
       height_inches: formData.height_inches,
-      gender: formData.gender || null,
+      gender: (formData.gender as "male" | "female" | null) || null,
       target_weight: formData.target_weight,
       target_bf: formData.target_bf,
       target_ffmi: formData.target_ffmi,
