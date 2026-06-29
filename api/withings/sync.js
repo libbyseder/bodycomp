@@ -31,7 +31,6 @@ export default async function handler(req, res) {
   const { access_token } = tokenData
 
   try {
-    // Pull last 2 years
     const startDate = Math.floor(Date.now() / 1000) - (2 * 365 * 24 * 60 * 60)
 
     const response = await fetch('https://wbsapi.withings.net/measure', {
@@ -43,23 +42,18 @@ export default async function handler(req, res) {
         meastype: '1,6',
         category: '1',
         startdate: startDate,
-        offset: '0',
       }),
     })
 
     const data = await response.json()
 
     if (data.status !== 0) {
-      return res.status(400).json({ error: 'Withings API error', details: data })
+      return res.status(400).json({ error: 'Withings error', details: data })
     }
 
     const groups = data.body?.measuregrps || []
-    console.log(`Found ${groups.length} measurement groups from Withings`)
-
-    // TEMP: Delete existing data for this user so we can re-import cleanly
-    await supabase.from('measurements').delete().eq('user_id', user.id)
-
     let imported = 0
+    const errors = []
 
     for (const group of groups) {
       const date = new Date(group.date * 1000).toISOString().split('T')[0]
@@ -81,22 +75,22 @@ export default async function handler(req, res) {
           body_fat: bodyFat,
         })
 
-        if (!error) {
-          imported++
+        if (error) {
+          errors.push({ date, error: error.message })
         } else {
-          console.error('Insert error on date', date, error)
+          imported++
         }
       }
     }
 
     return res.status(200).json({
       success: true,
-      foundFromWithings: groups.length,
+      found: groups.length,
       imported,
-      message: `Found ${groups.length} records. Imported ${imported} measurements.`,
+      errors: errors.slice(0, 5), // show first 5 errors
+      message: `Found ${groups.length}. Imported ${imported}. Errors: ${errors.length}`,
     })
   } catch (error) {
-    console.error(error)
     return res.status(500).json({ error: 'Sync failed', details: error.message })
   }
 }
