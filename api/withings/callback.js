@@ -2,7 +2,7 @@ export default async function handler(req, res) {
   const { code } = req.query
 
   if (!code) {
-    return res.status(400).json({ error: 'No code provided' })
+    return res.redirect('/?withings_error=no_code')
   }
 
   const clientId = process.env.WITHINGS_CLIENT_ID
@@ -26,16 +26,21 @@ export default async function handler(req, res) {
     const tokenData = await tokenResponse.json()
 
     if (tokenData.status !== 0) {
-      return res.status(400).json({ error: 'Token exchange failed', details: tokenData })
+      return res.redirect('/?withings_error=token_failed')
     }
 
-    // Return tokens to frontend so we can save them properly
-    return res.status(200).json({
-      access_token: tokenData.body.access_token,
-      refresh_token: tokenData.body.refresh_token,
-      withings_user_id: tokenData.body.userid,
+    const { access_token, refresh_token, userid } = tokenData.body
+
+    // Redirect to dashboard with tokens in URL (we'll handle saving on the frontend)
+    const params = new URLSearchParams({
+      withings_success: 'true',
+      access_token,
+      refresh_token,
+      withings_user_id: userid,
     })
+
+    return res.redirect(`/?${params.toString()}`)
   } catch (error) {
-    return res.status(500).json({ error: 'Server error' })
+    return res.redirect('/?withings_error=server_error')
   }
 }
