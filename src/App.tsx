@@ -15,7 +15,7 @@ import { LogOut, Plus, RefreshCw } from 'lucide-react'
 
 function Dashboard() {
   const { user, signOut } = useAuth()
-  const { measurements, loading, deleteMeasurement, refetch } = useMeasurements()
+  const { measurements, deleteMeasurement, refetch } = useMeasurements()
   const { profile } = useProfile()
   
   const [showAuthModal, setShowAuthModal] = useState(false)
