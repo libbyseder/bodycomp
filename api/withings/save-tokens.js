@@ -21,22 +21,44 @@ export default async function handler(req, res) {
   const { access_token, refresh_token, withings_user_id } = req.body
 
   try {
-    const { error } = await supabase.from('withings_tokens').upsert({
-      user_id: user.id,
-      access_token,
-      refresh_token,
-      withings_user_id,
-      updated_at: new Date().toISOString()
-    })
+    // Check if tokens already exist for this user
+    const { data: existing } = await supabase
+      .from('withings_tokens')
+      .select('id')
+      .eq('user_id', user.id)
+      .single()
 
-    if (error) {
-      console.error('Supabase upsert error:', error)
-      return res.status(500).json({ error: 'Failed to save tokens', details: error.message })
+    if (existing) {
+      // Update existing row
+      const { error } = await supabase
+        .from('withings_tokens')
+        .update({
+          access_token,
+          refresh_token,
+          withings_user_id,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', user.id)
+
+      if (error) throw error
+    } else {
+      // Insert new row
+      const { error } = await supabase
+        .from('withings_tokens')
+        .insert({
+          user_id: user.id,
+          access_token,
+          refresh_token,
+          withings_user_id,
+          updated_at: new Date().toISOString(),
+        })
+
+      if (error) throw error
     }
 
     return res.status(200).json({ success: true })
   } catch (error) {
-    console.error(error)
-    return res.status(500).json({ error: 'Server error' })
+    console.error('Supabase error:', error)
+    return res.status(500).json({ error: 'Failed to save tokens', details: error.message })
   }
 }
