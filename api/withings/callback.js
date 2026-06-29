@@ -1,11 +1,13 @@
-export default function handler(req, res) {
-  if (req.method === 'HEAD') {
-    return res.status(200).end()
+export default async function handler(req, res) {
+  const { code } = req.query
+
+  if (!code) {
+    return res.status(400).json({ error: 'No authorization code provided' })
   }
 
-  if (req.method === 'GET' || req.method === 'POST') {
-    return res.status(200).json({ status: 'ok' })
-  }
-
-  return res.status(405).end()
+  // For now, just confirm we received the code
+  return res.status(200).json({ 
+    message: 'Authorization code received successfully',
+    code: code 
+  })
 }
