@@ -1,3 +1,10 @@
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.VITE_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY // Use service role key for server-side
+)
+
 export default async function handler(req, res) {
   const { code } = req.query
 
@@ -10,12 +17,10 @@ export default async function handler(req, res) {
   const redirectUri = 'https://bodycomp-goals.vercel.app/api/withings/callback'
 
   try {
-    // Exchange authorization code for access token
+    // Exchange code for tokens
     const tokenResponse = await fetch('https://wbsapi.withings.net/v2/oauth2', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
         action: 'requesttoken',
         grant_type: 'authorization_code',
@@ -29,17 +34,29 @@ export default async function handler(req, res) {
     const tokenData = await tokenResponse.json()
 
     if (tokenData.status !== 0) {
-      return res.status(400).json({ error: 'Failed to get token', details: tokenData })
+      return res.status(400).json({ error: 'Token exchange failed', details: tokenData })
     }
 
-    // For now, just return the tokens so we can see them
+    const { access_token, refresh_token, userid } = tokenData.body
+
+    // TODO: Get the current logged-in user from your session
+    // For now, we'll just return the tokens
     return res.status(200).json({
       message: 'Successfully connected to Withings!',
-      access_token: tokenData.body.access_token,
-      refresh_token: tokenData.body.refresh_token,
-      user_id: tokenData.body.userid,
+      access_token,
+      refresh_token,
+      withings_user_id: userid,
     })
+
+    // Later we will save to Supabase like this:
+    // await supabase.from('withings_tokens').upsert({
+    //   user_id: currentUserId,
+    //   access_token,
+    //   refresh_token,
+    //   withings_user_id: userid,
+    //   updated_at: new Date()
+    // })
   } catch (error) {
-    return res.status(500).json({ error: 'Server error', details: error.message })
+    return res.status(500).json({ error: 'Server error' })
   }
 }
