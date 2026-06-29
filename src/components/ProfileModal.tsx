@@ -14,7 +14,7 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const [formData, setFormData] = useState({
     name: profile?.name || '',
     height_inches: profile?.height_inches || 63.5,
-    gender: profile?.gender || '',
+    gender: (profile?.gender as "male" | "female" | null) || null,
     target_weight: profile?.target_weight || 124,
     target_bf: profile?.target_bf || 21,
     target_ffmi: profile?.target_ffmi || 17.5,
