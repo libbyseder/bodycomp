@@ -67,7 +67,6 @@ function Dashboard() {
 
       if (result.success) {
         alert("Withings connected successfully!")
-        // Optional: You can add a "Connected" state here later
       } else {
         alert("Failed to save Withings connection")
         console.error(result)
@@ -79,7 +78,7 @@ function Dashboard() {
   }
   // ===================== END WITHINGS =====================
 
-  // ... rest of your existing code
+  // ... rest of your existing code (handleDeleteAll, etc.)
   const { measurements, deleteMeasurement, refetch } = useMeasurements()
   const { profile } = useProfile()
   
