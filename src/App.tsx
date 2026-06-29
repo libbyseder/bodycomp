@@ -75,15 +75,30 @@ function Dashboard() {
             </div>
           </div>
 
-          <div className="flex items-center gap-x-3">
-            <ImportCSV refetch={refetch} />
-            <button onClick={() => setShowProfile(true)} className="flex items-center gap-x-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm transition-colors">
-              Profile
-            </button>
-            <button onClick={signOut} className="flex items-center gap-x-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm transition-colors">
-              <LogOut size={16} /> Sign Out
-            </button>
-          </div>
+<div className="flex items-center gap-x-3">
+  <ImportCSV refetch={refetch} />
+  
+  <button 
+    onClick={() => window.location.href = '/api/withings/auth'}
+    className="flex items-center gap-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-2xl text-sm transition-colors"
+  >
+    Connect Withings
+  </button>
+
+  <button 
+    onClick={() => setShowProfile(true)}
+    className="flex items-center gap-x-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm transition-colors"
+  >
+    Profile
+  </button>
+  
+  <button 
+    onClick={signOut}
+    className="flex items-center gap-x-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm transition-colors"
+  >
+    <LogOut size={16} /> Sign Out
+  </button>
+</div>
         </header>
 
         <div className="flex items-center justify-between mb-6">
