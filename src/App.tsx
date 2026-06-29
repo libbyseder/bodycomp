@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from './lib/supabase'   // ← Make sure this path is correct
+import { supabase } from './lib/supabase'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import AuthModal from './components/AuthModal'
 import QuickLogModal from './components/QuickLogModal'
@@ -10,7 +10,6 @@ import ImportCSV from './components/ImportCSV'
 import MeasurementsTable from './components/MeasurementsTable'
 import { useMeasurements } from './hooks/useMeasurements'
 import { useProfile } from './hooks/useProfile'
-import { supabase } from './lib/supabase'
 import toast from 'react-hot-toast'
 import { LogOut, Plus, RefreshCw } from 'lucide-react'
 
@@ -18,6 +17,10 @@ function Dashboard() {
   const { user, signOut } = useAuth()
   const { measurements, deleteMeasurement, refetch } = useMeasurements()
   const { profile } = useProfile()
+
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [showQuickLog, setShowQuickLog] = useState(false)
+  const [showProfile, setShowProfile] = useState(false)
 
   // ===================== WITHINGS INTEGRATION =====================
   useEffect(() => {
@@ -32,7 +35,6 @@ function Dashboard() {
         saveWithingsTokens(access_token, refresh_token, withings_user_id)
       }
 
-      // Clean the URL
       window.history.replaceState({}, document.title, window.location.pathname)
     }
   }, [])
@@ -78,14 +80,6 @@ function Dashboard() {
   }
   // ===================== END WITHINGS =====================
 
-  // ... rest of your existing code (handleDeleteAll, etc.)
-  const { measurements, deleteMeasurement, refetch } = useMeasurements()
-  const { profile } = useProfile()
-  
-  const [showAuthModal, setShowAuthModal] = useState(false)
-  const [showQuickLog, setShowQuickLog] = useState(false)
-  const [showProfile, setShowProfile] = useState(false)
-
   const handleDeleteAll = async () => {
     if (!confirm("Are you sure you want to delete ALL your measurements? This cannot be undone.")) {
       return
@@ -113,7 +107,7 @@ function Dashboard() {
         <div className="text-center">
           <h1 className="text-6xl font-semibold tracking-tighter mb-4">RecompTrack</h1>
           <p className="text-xl text-zinc-400 mb-8">Track your body composition with precision.</p>
-          <button 
+          <button
             onClick={() => setShowAuthModal(true)}
             className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 rounded-2xl font-medium"
           >
@@ -139,30 +133,30 @@ function Dashboard() {
             </div>
           </div>
 
-<div className="flex items-center gap-x-3">
-  <ImportCSV refetch={refetch} />
-  
-  <button 
-    onClick={() => window.location.href = '/api/withings/auth'}
-    className="flex items-center gap-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-2xl text-sm transition-colors"
-  >
-    Connect Withings
-  </button>
+          <div className="flex items-center gap-x-3">
+            <ImportCSV refetch={refetch} />
 
-  <button 
-    onClick={() => setShowProfile(true)}
-    className="flex items-center gap-x-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm transition-colors"
-  >
-    Profile
-  </button>
-  
-  <button 
-    onClick={signOut}
-    className="flex items-center gap-x-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm transition-colors"
-  >
-    <LogOut size={16} /> Sign Out
-  </button>
-</div>
+            <button
+              onClick={() => window.location.href = '/api/withings/auth'}
+              className="flex items-center gap-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-2xl text-sm transition-colors"
+            >
+              Connect Withings
+            </button>
+
+            <button
+              onClick={() => setShowProfile(true)}
+              className="flex items-center gap-x-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm transition-colors"
+            >
+              Profile
+            </button>
+
+            <button
+              onClick={signOut}
+              className="flex items-center gap-x-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm transition-colors"
+            >
+              <LogOut size={16} /> Sign Out
+            </button>
+          </div>
         </header>
 
         <div className="flex items-center justify-between mb-6">
@@ -170,7 +164,10 @@ function Dashboard() {
             <h1 className="text-5xl font-semibold tracking-tighter">Dashboard</h1>
             <p className="text-zinc-400 mt-1">Track your progress over time</p>
           </div>
-          <button onClick={() => setShowQuickLog(true)} className="flex items-center gap-x-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 rounded-2xl font-medium transition-colors">
+          <button
+            onClick={() => setShowQuickLog(true)}
+            className="flex items-center gap-x-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 rounded-2xl font-medium transition-colors"
+          >
             <Plus size={18} /> Quick Log
           </button>
         </div>
@@ -184,19 +181,25 @@ function Dashboard() {
             <div className="flex items-center gap-x-3">
               <span className="text-sm text-zinc-400">{measurements.length} total entries</span>
               <ImportCSV refetch={refetch} />
-              <button onClick={handleDeleteAll} className="flex items-center gap-x-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm transition-colors">
+              <button
+                onClick={handleDeleteAll}
+                className="flex items-center gap-x-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm transition-colors"
+              >
                 Delete All
               </button>
-              <button onClick={() => window.location.reload()} className="flex items-center gap-x-2 px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 rounded-xl text-sm transition-colors">
+              <button
+                onClick={() => window.location.reload()}
+                className="flex items-center gap-x-2 px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 rounded-xl text-sm transition-colors"
+              >
                 <RefreshCw size={14} /> Refresh
               </button>
             </div>
           </div>
 
-          <MeasurementsTable 
-            measurements={measurements} 
-            onDelete={deleteMeasurement} 
-            profile={profile} 
+          <MeasurementsTable
+            measurements={measurements}
+            onDelete={deleteMeasurement}
+            profile={profile}
           />
         </div>
       </div>
