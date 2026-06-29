@@ -78,6 +78,36 @@ function Dashboard() {
       alert("Something went wrong while connecting Withings")
     }
   }
+
+  const syncWithings = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        alert("Please log in first")
+        return
+      }
+
+      const res = await fetch('/api/withings/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      })
+
+      const result = await res.json()
+
+      if (result.success) {
+        alert(result.message || "Sync completed!")
+        await refetch()
+      } else {
+        alert(result.error || "Sync failed")
+      }
+    } catch (err) {
+      console.error(err)
+      alert("Error syncing with Withings")
+    }
+  }
   // ===================== END WITHINGS =====================
 
   const handleDeleteAll = async () => {
@@ -141,6 +171,13 @@ function Dashboard() {
               className="flex items-center gap-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-2xl text-sm transition-colors"
             >
               Connect Withings
+            </button>
+
+            <button
+              onClick={syncWithings}
+              className="flex items-center gap-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-2xl text-sm transition-colors"
+            >
+              Sync Now
             </button>
 
             <button
