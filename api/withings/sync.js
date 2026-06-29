@@ -18,7 +18,6 @@ export default async function handler(req, res) {
 
   if (!user) return res.status(401).json({ error: 'Invalid user' })
 
-  // Get Withings tokens
   const { data: tokenData } = await supabase
     .from('withings_tokens')
     .select('*')
@@ -32,7 +31,7 @@ export default async function handler(req, res) {
   const { access_token } = tokenData
 
   try {
-    // Pull last 2 years of data (change this if needed)
+    // Pull last 2 years
     const startDate = Math.floor(Date.now() / 1000) - (2 * 365 * 24 * 60 * 60)
 
     const response = await fetch('https://wbsapi.withings.net/measure', {
@@ -41,7 +40,7 @@ export default async function handler(req, res) {
       body: new URLSearchParams({
         action: 'getmeas',
         access_token,
-        meastype: '1,6',        // 1 = Weight, 6 = Body Fat %
+        meastype: '1,6',
         category: '1',
         startdate: startDate,
         offset: '0',
@@ -51,12 +50,16 @@ export default async function handler(req, res) {
     const data = await response.json()
 
     if (data.status !== 0) {
-      return res.status(400).json({ error: 'Failed to fetch from Withings', details: data })
+      return res.status(400).json({ error: 'Withings API error', details: data })
     }
 
     const groups = data.body?.measuregrps || []
+    console.log(`Found ${groups.length} measurement groups from Withings`)
+
+    // TEMP: Delete existing data for this user so we can re-import cleanly
+    await supabase.from('measurements').delete().eq('user_id', user.id)
+
     let imported = 0
-    let skipped = 0
 
     for (const group of groups) {
       const date = new Date(group.date * 1000).toISOString().split('T')[0]
@@ -71,32 +74,26 @@ export default async function handler(req, res) {
       if (weightKg) {
         const weightLbs = weightKg * 2.20462
 
-        const { error } = await supabase
-          .from('measurements')
-          .upsert({
-            user_id: user.id,
-            date,
-            weight: weightLbs,
-            body_fat: bodyFat,
-          }, {
-            onConflict: 'user_id,date'
-          })
+        const { error } = await supabase.from('measurements').insert({
+          user_id: user.id,
+          date,
+          weight: weightLbs,
+          body_fat: bodyFat,
+        })
 
-        if (error) {
-          console.error('Insert error:', error)
-          skipped++
-        } else {
+        if (!error) {
           imported++
+        } else {
+          console.error('Insert error on date', date, error)
         }
       }
     }
 
     return res.status(200).json({
       success: true,
+      foundFromWithings: groups.length,
       imported,
-      skipped,
-      totalFromWithings: groups.length,
-      message: `Imported ${imported} new measurements from Withings`,
+      message: `Found ${groups.length} records. Imported ${imported} measurements.`,
     })
   } catch (error) {
     console.error(error)
