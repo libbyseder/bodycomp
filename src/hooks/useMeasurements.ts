@@ -53,7 +53,7 @@ export function useMeasurements() {
       .single()
 
     if (!error) {
-      await fetchMeasurements() // Auto refresh after adding
+      await fetchMeasurements()
     }
 
     return { data, error }
@@ -63,7 +63,7 @@ export function useMeasurements() {
     const { error } = await supabase.from('measurements').delete().eq('id', id)
 
     if (!error) {
-      await fetchMeasurements() // Auto refresh after deleting
+      await fetchMeasurements()
     }
 
     return { error }
