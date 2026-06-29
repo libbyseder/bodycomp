@@ -28,7 +28,7 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     const { error } = await updateProfile({
       name: formData.name,
       height_inches: formData.height_inches,
-      gender: (formData.gender as "male" | "female" | null) || null,
+      gender: formData.gender,
       target_weight: formData.target_weight,
       target_bf: formData.target_bf,
       target_ffmi: formData.target_ffmi,
@@ -42,7 +42,6 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     }
   }
 
-  // Dynamic FFMI categories based on gender
   const getFfmiCategories = () => {
     const gender = formData.gender?.toLowerCase()
 
@@ -66,7 +65,6 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
       ]
     }
 
-    // No gender selected - show both
     return [
       { range: 'Men: < 16 | Women: < 14', label: 'Below Average', color: 'text-red-400' },
       { range: 'Men: 16-18 | Women: 14-16', label: 'Average', color: 'text-yellow-400' },
@@ -87,7 +85,6 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
         <h2 className="text-3xl font-semibold mb-8">Profile &amp; Goals</h2>
 
-        {/* Name */}
         <div className="mb-6">
           <label className="block text-sm text-zinc-400 mb-2">Name</label>
           <input
@@ -100,7 +97,6 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
         </div>
 
         <div className="grid grid-cols-2 gap-4 mb-8">
-          {/* Height */}
           <div>
             <label className="block text-sm text-zinc-400 mb-2">Height (inches)</label>
             <input
@@ -112,28 +108,25 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
             />
           </div>
 
-          {/* Gender */}
           <div>
             <label className="block text-sm text-zinc-400 mb-2">Gender</label>
             <select
-              value={formData.gender}
-              onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+              value={formData.gender || ''}
+              onChange={(e) => setFormData({ ...formData, gender: e.target.value as "male" | "female" | null })}
               className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
             >
               <option value="">Select...</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
             </select>
           </div>
         </div>
 
-        {/* Goals Section */}
         <div className="mb-2">
           <h3 className="text-lg font-medium mb-4">Goals</h3>
         </div>
 
         <div className="grid grid-cols-3 gap-4 mb-8">
-          {/* Target Weight */}
           <div>
             <label className="block text-sm text-zinc-400 mb-2">Target Weight (lbs)</label>
             <input
@@ -144,7 +137,6 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
             />
           </div>
 
-          {/* Target Body Fat */}
           <div>
             <label className="block text-sm text-zinc-400 mb-2">Target Body Fat %</label>
             <input
@@ -156,7 +148,6 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
             />
           </div>
 
-          {/* Target FFMI with Tooltip */}
           <div className="relative">
             <label className="block text-sm text-zinc-400 mb-2 flex items-center gap-x-1">
               Target FFMI
@@ -177,7 +168,6 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
               className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
             />
 
-            {/* Dynamic FFMI Tooltip */}
             {showFfmiTooltip && (
               <div className="absolute top-full mt-2 left-0 z-50 w-72 bg-zinc-800 border border-zinc-700 rounded-2xl p-4 text-sm shadow-xl">
                 <div className="font-medium mb-3 text-white">FFMI Categories</div>
@@ -191,7 +181,7 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                 </div>
                 <div className="mt-3 pt-3 border-t border-zinc-700 text-[10px] text-zinc-500">
                   {formData.gender 
-                    ? `Showing categories for ${formData.gender.toLowerCase()}s` 
+                    ? `Showing categories for ${formData.gender}s` 
                     : 'Select gender to see specific ranges'}
                 </div>
               </div>
@@ -199,7 +189,6 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
           </div>
         </div>
 
-        {/* Buttons */}
         <div className="flex gap-3">
           <button
             onClick={onClose}
