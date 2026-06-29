@@ -8,6 +8,8 @@ export interface Measurement {
   date: string
   weight: number
   body_fat: number | null
+  height_inches?: number | null
+  gender?: string | null
   created_at?: string
 }
 
