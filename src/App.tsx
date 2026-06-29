@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { supabase } from './lib/supabase'   // ← Make sure this path is correct
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import AuthModal from './components/AuthModal'
 import QuickLogModal from './components/QuickLogModal'
@@ -15,6 +16,72 @@ import { LogOut, Plus, RefreshCw } from 'lucide-react'
 
 function Dashboard() {
   const { user, signOut } = useAuth()
+  function Dashboard() {
+  const { user, signOut } = useAuth()
+  const { measurements, deleteMeasurement, refetch } = useMeasurements()
+  const { profile } = useProfile()
+
+  // ===================== WITHINGS INTEGRATION =====================
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+
+    if (params.get('withings_success') === 'true') {
+      const access_token = params.get('access_token')
+      const refresh_token = params.get('refresh_token')
+      const withings_user_id = params.get('withings_user_id')
+
+      if (access_token && refresh_token && withings_user_id) {
+        saveWithingsTokens(access_token, refresh_token, withings_user_id)
+      }
+
+      // Clean the URL
+      window.history.replaceState({}, document.title, window.location.pathname)
+    }
+  }, [])
+
+  const saveWithingsTokens = async (
+    access_token: string,
+    refresh_token: string,
+    withings_user_id: string
+  ) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (!session) {
+        alert("Please log in to connect Withings")
+        return
+      }
+
+      const response = await fetch('/api/withings/save-tokens', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          access_token,
+          refresh_token,
+          withings_user_id,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        alert("Withings connected successfully!")
+        // Optional: You can add a "Connected" state here later
+      } else {
+        alert("Failed to save Withings connection")
+        console.error(result)
+      }
+    } catch (error) {
+      console.error("Error saving Withings tokens:", error)
+      alert("Something went wrong while connecting Withings")
+    }
+  }
+  // ===================== END WITHINGS =====================
+
+  // ... rest of your existing code
   const { measurements, deleteMeasurement, refetch } = useMeasurements()
   const { profile } = useProfile()
   
