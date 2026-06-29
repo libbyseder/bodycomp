@@ -52,8 +52,8 @@ export default async function handler(req, res) {
     }
 
     const groups = data.body?.measuregrps || []
+    let firstError = null
     let imported = 0
-    const errors = []
 
     for (const group of groups) {
       const date = new Date(group.date * 1000).toISOString().split('T')[0]
@@ -65,7 +65,7 @@ export default async function handler(req, res) {
         if (m.type === 6) bodyFat = m.value / Math.pow(10, m.unit)
       }
 
-      if (weightKg) {
+      if (weightKg && !firstError) {
         const weightLbs = weightKg * 2.20462
 
         const { error } = await supabase.from('measurements').insert({
@@ -76,7 +76,7 @@ export default async function handler(req, res) {
         })
 
         if (error) {
-          errors.push({ date, error: error.message })
+          firstError = { date, error: error.message, code: error.code }
         } else {
           imported++
         }
@@ -87,8 +87,10 @@ export default async function handler(req, res) {
       success: true,
       found: groups.length,
       imported,
-      errors: errors.slice(0, 5), // show first 5 errors
-      message: `Found ${groups.length}. Imported ${imported}. Errors: ${errors.length}`,
+      firstError, // ← This will show us the real problem
+      message: firstError 
+        ? `Error on ${firstError.date}: ${firstError.error}` 
+        : `Imported ${imported} measurements`,
     })
   } catch (error) {
     return res.status(500).json({ error: 'Sync failed', details: error.message })
