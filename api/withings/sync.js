@@ -69,19 +69,15 @@ export default async function handler(req, res) {
       if (weightKg || bodyFat) {
         const weightLbs = weightKg ? weightKg * 2.20462 : null
 
-        const { error } = await supabase
-          .from('measurements')
-          .upsert({
-            user_id: user.id,
-            date,
-            weight: weightLbs,
-            body_fat: bodyFat,
-          }, {
-            onConflict: 'user_id,date'
-          })
+        const { error } = await supabase.from('measurements').insert({
+          user_id: user.id,
+          date,
+          weight: weightLbs,
+          body_fat: bodyFat,
+        })
 
         if (error) {
-          if (error.code !== '23505') { // ignore duplicate key errors
+          if (error.code !== '23505') { // 23505 = duplicate key (ignore)
             errors.push({ date, message: error.message })
           }
         } else {
