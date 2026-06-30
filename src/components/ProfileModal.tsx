@@ -21,7 +21,6 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
   const [showFfmiTooltip, setShowFfmiTooltip] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  // Load current profile when modal opens
   useEffect(() => {
     if (isOpen) {
       const loadProfile = async () => {
@@ -82,10 +81,10 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
 
     toast.success('Profile updated')
 
-    // Close modal FIRST (this guarantees it closes)
+    // Close immediately
     onClose()
 
-    // Then refresh profile in background
+    // Refresh profile in background
     if (onSave) {
       const result = onSave()
       if (result && typeof result.then === 'function') {
