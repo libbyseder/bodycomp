@@ -54,7 +54,7 @@ export function useMeasurements() {
       return { error }
     }
 
-    await fetchMeasurements()
+    fetchMeasurements().catch(console.error)
     return { error: null }
   }
 

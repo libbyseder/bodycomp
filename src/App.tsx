@@ -15,7 +15,7 @@ import { LogOut, Plus, RefreshCw } from 'lucide-react'
 
 function Dashboard() {
   const { user, signOut } = useAuth()
-  const { measurements, addMeasurement, deleteMeasurement, refetch } = useMeasurements()
+  const { measurements, deleteMeasurement, refetch } = useMeasurements()
   const { profile, refetchProfile } = useProfile()   // ← Updated with refetchProfile
 
   const [showAuthModal, setShowAuthModal] = useState(false)
@@ -227,7 +227,6 @@ function Dashboard() {
       <QuickLogModal
         isOpen={showQuickLog}
         onClose={() => setShowQuickLog(false)}
-        addMeasurement={addMeasurement}
         refetch={refetch}
       />
       <ProfileModal 

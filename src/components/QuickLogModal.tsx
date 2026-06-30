@@ -1,19 +1,15 @@
 import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
 import { X } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface QuickLogModalProps {
   isOpen: boolean
   onClose: () => void
-  addMeasurement: (
-    date: string,
-    weight: number,
-    body_fat: number | null
-  ) => Promise<{ error: unknown }>
   refetch?: () => void | Promise<void>
 }
 
-export default function QuickLogModal({ isOpen, onClose, addMeasurement, refetch }: QuickLogModalProps) {
+export default function QuickLogModal({ isOpen, onClose, refetch }: QuickLogModalProps) {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [weight, setWeight] = useState('')
   const [bodyFat, setBodyFat] = useState('')
@@ -24,6 +20,7 @@ export default function QuickLogModal({ isOpen, onClose, addMeasurement, refetch
       setDate(new Date().toISOString().split('T')[0])
       setWeight('')
       setBodyFat('')
+      setIsSubmitting(false)
     }
   }, [isOpen])
 
@@ -40,26 +37,58 @@ export default function QuickLogModal({ isOpen, onClose, addMeasurement, refetch
     setIsSubmitting(true)
 
     try {
-      const { error } = await addMeasurement(
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        toast.error('Please log in first')
+        return
+      }
+
+      const parsedWeight = parseFloat(weight)
+      const parsedBodyFat = bodyFat ? parseFloat(bodyFat) : null
+
+      const row: { user_id: string; date: string; weight: number; body_fat?: number } = {
+        user_id: user.id,
         date,
-        parseFloat(weight),
-        bodyFat ? parseFloat(bodyFat) : null
-      )
+        weight: parsedWeight,
+      }
+
+      if (parsedBodyFat !== null) {
+        row.body_fat = parsedBodyFat
+      } else {
+        // Preserve existing body_fat when updating a date that already has a log
+        const { data: existing } = await supabase
+          .from('measurements')
+          .select('body_fat')
+          .eq('user_id', user.id)
+          .eq('date', date)
+          .maybeSingle()
+
+        if (existing?.body_fat != null) {
+          row.body_fat = existing.body_fat
+        }
+      }
+
+      // Try insert first; fall back to upsert if this date already exists
+      let { error } = await supabase.from('measurements').insert(row)
+
+      if (error?.code === '23505') {
+        const upsertResult = await supabase
+          .from('measurements')
+          .upsert(row, { onConflict: 'user_id,date' })
+        error = upsertResult.error
+      }
 
       if (error) {
-        toast.error('Failed to save measurement')
+        toast.error(`Failed to save: ${error.message}`)
         console.error(error)
         return
       }
 
       toast.success('Measurement saved!')
-      setWeight('')
-      setBodyFat('')
 
-      // Close immediately — don't wait for refetch
+      // Close immediately — same pattern as ProfileModal
       onClose()
 
-      // Refresh the dashboard in the background
       if (refetch) {
         const result = refetch()
         if (result && typeof result.then === 'function') {
@@ -77,8 +106,8 @@ export default function QuickLogModal({ isOpen, onClose, addMeasurement, refetch
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
       <div className="bg-zinc-900 border border-zinc-700 rounded-3xl w-full max-w-md p-8 relative">
-        <button 
-          onClick={onClose} 
+        <button
+          onClick={onClose}
           className="absolute top-6 right-6 text-zinc-400 hover:text-white"
         >
           <X size={20} />
@@ -87,7 +116,6 @@ export default function QuickLogModal({ isOpen, onClose, addMeasurement, refetch
         <h2 className="text-3xl font-semibold mb-8">Quick Log</h2>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Date */}
           <div>
             <label className="block text-sm text-zinc-400 mb-2">Date</label>
             <input
@@ -98,7 +126,6 @@ export default function QuickLogModal({ isOpen, onClose, addMeasurement, refetch
             />
           </div>
 
-          {/* Weight */}
           <div>
             <label className="block text-sm text-zinc-400 mb-2">Weight (lbs)</label>
             <input
@@ -112,7 +139,6 @@ export default function QuickLogModal({ isOpen, onClose, addMeasurement, refetch
             />
           </div>
 
-          {/* Body Fat */}
           <div>
             <label className="block text-sm text-zinc-400 mb-2">Body Fat % (optional)</label>
             <input
@@ -125,7 +151,6 @@ export default function QuickLogModal({ isOpen, onClose, addMeasurement, refetch
             />
           </div>
 
-          {/* Buttons */}
           <div className="flex gap-3 pt-4">
             <button
               type="button"
