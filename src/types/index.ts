@@ -10,12 +10,14 @@ export interface Measurement {
 }
 
 export interface Profile {
-  id: string
-  name: string | null
-  height_inches: number | null
-  gender: 'male' | 'female' | null
-  target_weight: number | null
-  target_bf: number | null
-  target_ffmi: number | null
-  updated_at: string
+  id?: string
+  user_id: string
+  name?: string | null
+  height_inches?: number | null
+  gender?: 'male' | 'female' | null
+  target_weight?: number | null
+  target_body_fat?: number | null      // ← Changed from target_bf
+  target_ffmi?: number | null
+  created_at?: string
+  updated_at?: string
 }
