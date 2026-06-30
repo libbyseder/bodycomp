@@ -6,7 +6,7 @@ import toast from 'react-hot-toast'
 interface ProfileModalProps {
   isOpen: boolean
   onClose: () => void
-  onSave?: () => void | Promise<void>   // ← Added
+  onSave?: () => void | Promise<void>
 }
 
 export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalProps) {
@@ -15,7 +15,7 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
     height_inches: 63.5,
     gender: null as "male" | "female" | null,
     target_weight: 124,
-    target_body_fat: 23,           // ← Changed from target_bf
+    target_body_fat: 23,
     target_ffmi: 18,
   })
   const [showFfmiTooltip, setShowFfmiTooltip] = useState(false)
@@ -40,7 +40,7 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
             height_inches: data.height_inches || 63.5,
             gender: data.gender || null,
             target_weight: data.target_weight || 124,
-            target_body_fat: data.target_body_fat || 23,   // ← Changed
+            target_body_fat: data.target_body_fat || 23,
             target_ffmi: data.target_ffmi || 18,
           })
         }
@@ -53,6 +53,7 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
 
   const handleSave = async () => {
     setLoading(true)
+
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       toast.error('No user found')
@@ -68,7 +69,7 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
         height_inches: formData.height_inches,
         gender: formData.gender,
         target_weight: formData.target_weight,
-        target_body_fat: formData.target_body_fat,   // ← Changed
+        target_body_fat: formData.target_body_fat,
         target_ffmi: formData.target_ffmi,
       })
 
@@ -78,9 +79,13 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
       toast.error('Failed to save profile')
     } else {
       toast.success('Profile updated')
-      
+
       if (onSave) {
-        await onSave()           // ← Call onSave after successful save
+        try {
+          await onSave()
+        } catch (e) {
+          console.error('Error calling onSave:', e)
+        }
       }
       onClose()
     }
@@ -97,7 +102,7 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
         { range: '> 22', label: 'Superior / Elite', color: 'text-emerald-400' },
       ]
     }
-   
+
     if (gender === 'female') {
       return [
         { range: '< 14', label: 'Below Average', color: 'text-red-400' },
@@ -107,6 +112,7 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
         { range: '> 20', label: 'Superior / Elite', color: 'text-emerald-400' },
       ]
     }
+
     return [
       { range: 'Men: < 16 | Women: < 14', label: 'Below Average', color: 'text-red-400' },
       { range: 'Men: 16-18 | Women: 14-16', label: 'Average', color: 'text-yellow-400' },
@@ -121,11 +127,16 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
       <div className="bg-zinc-900 border border-zinc-700 rounded-3xl w-full max-w-md p-8 relative">
-        <button onClick={onClose} className="absolute top-6 right-6 text-zinc-400 hover:text-white">
+        <button 
+          onClick={onClose} 
+          className="absolute top-6 right-6 text-zinc-400 hover:text-white"
+        >
           <X size={20} />
         </button>
+
         <h2 className="text-3xl font-semibold mb-8">Profile &amp; Goals</h2>
 
+        {/* Name */}
         <div className="mb-6">
           <label className="block text-sm text-zinc-400 mb-2">Name</label>
           <input
@@ -137,6 +148,7 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
           />
         </div>
 
+        {/* Height & Gender */}
         <div className="grid grid-cols-2 gap-4 mb-8">
           <div>
             <label className="block text-sm text-zinc-400 mb-2">Height (inches)</label>
@@ -162,11 +174,13 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
           </div>
         </div>
 
+        {/* Goals Section */}
         <div className="mb-2">
           <h3 className="text-lg font-medium mb-4">Goals</h3>
         </div>
 
         <div className="grid grid-cols-3 gap-4 mb-8">
+          {/* Target Weight */}
           <div>
             <label className="block text-sm text-zinc-400 mb-2">Target Weight (lbs)</label>
             <input
@@ -176,16 +190,20 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
               className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
             />
           </div>
+
+          {/* Target Body Fat % */}
           <div>
             <label className="block text-sm text-zinc-400 mb-2">Target Body Fat %</label>
             <input
               type="number"
               step="0.1"
-              value={formData.target_body_fat}           // ← Changed
+              value={formData.target_body_fat}
               onChange={(e) => setFormData({ ...formData, target_body_fat: parseFloat(e.target.value) || 23 })}
               className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
             />
           </div>
+
+          {/* Target FFMI */}
           <div className="relative">
             <label className="block text-sm text-zinc-400 mb-2 flex items-center gap-x-1">
               Target FFMI
@@ -205,6 +223,8 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
               onChange={(e) => setFormData({ ...formData, target_ffmi: parseFloat(e.target.value) || 17.5 })}
               className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
             />
+
+            {/* FFMI Tooltip */}
             {showFfmiTooltip && (
               <div className="absolute top-full mt-2 left-0 z-50 w-72 bg-zinc-800 border border-zinc-700 rounded-2xl p-4 text-sm shadow-xl">
                 <div className="font-medium mb-3 text-white">FFMI Categories</div>
@@ -226,6 +246,7 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
           </div>
         </div>
 
+        {/* Buttons */}
         <div className="flex gap-3">
           <button
             onClick={onClose}
