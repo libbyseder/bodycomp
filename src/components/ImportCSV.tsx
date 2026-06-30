@@ -35,8 +35,9 @@ export default function ImportCSV({ refetch }: ImportCSVProps) {
           for (const row of results.data as any[]) {
             const date = row.date || row.Date || row.DATE
             const weight = parseFloat(row.weight || row.Weight || row.WEIGHT)
-            const body_fat = row.body_fat || row["body fat"] || row["Body Fat"] 
-              ? parseFloat(row.body_fat || row["body fat"] || row["Body Fat"]) 
+            const rawBodyFat = row.body_fat || row["body fat"] || row["Body Fat"] || row.bodyFat
+            const csvBodyFat = rawBodyFat !== undefined && rawBodyFat !== "" && rawBodyFat !== null
+              ? parseFloat(rawBodyFat)
               : null
 
             if (!date || isNaN(weight)) {
@@ -44,12 +45,31 @@ export default function ImportCSV({ refetch }: ImportCSVProps) {
               continue
             }
 
-            const { error } = await supabase.from('measurements').upsert({
+            // Check if a record already exists for this date
+            const { data: existing } = await supabase
+              .from('measurements')
+              .select('body_fat')
+              .eq('user_id', user.id)
+              .eq('date', date.trim())
+              .single()
+
+            // Smart merge: preserve existing body_fat if CSV doesn't have one
+            let finalBodyFat = csvBodyFat
+            if (existing && existing.body_fat !== null && csvBodyFat === null) {
+              finalBodyFat = existing.body_fat
+            }
+
+            const upsertData: any = {
               user_id: user.id,
               date: date.trim(),
               weight,
-              body_fat,
-            }, {
+            }
+
+            if (finalBodyFat !== null) {
+              upsertData.body_fat = finalBodyFat
+            }
+
+            const { error } = await supabase.from('measurements').upsert(upsertData, {
               onConflict: 'user_id,date'
             })
 
@@ -76,7 +96,6 @@ export default function ImportCSV({ refetch }: ImportCSVProps) {
           toast.error("Failed to import CSV")
         } finally {
           setIsImporting(false)
-          // Reset file input
           e.target.value = ''
         }
       },
