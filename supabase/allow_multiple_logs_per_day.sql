@@ -11,8 +11,12 @@ WHERE logged_at IS NULL;
 
 ALTER TABLE measurements ALTER COLUMN logged_at SET DEFAULT now();
 
--- Remove the one-row-per-day limit
+-- Remove the one-row-per-day limit (run the SELECT below first if this fails)
 ALTER TABLE measurements DROP CONSTRAINT IF EXISTS measurements_user_id_date_key;
+
+-- If the DROP above didn't work, find the real constraint name:
+-- SELECT conname FROM pg_constraint
+-- WHERE conrelid = 'measurements'::regclass AND contype = 'u';
 
 -- Prevent re-importing the same Withings reading on every sync
 CREATE UNIQUE INDEX IF NOT EXISTS measurements_user_withings_grpid_unique
