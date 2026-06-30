@@ -7,12 +7,12 @@ import ProfileModal from './components/ProfileModal'
 import DashboardWidgets from './components/DashboardWidgets'
 import TrendsChart from './components/TrendsChart'
 import ImportCSV from './components/ImportCSV'
-import WithingsSync from './components/WithingsSync'
+import DashboardHeader from './components/DashboardHeader'
 import MeasurementsTable from './components/MeasurementsTable'
 import { useMeasurements } from './hooks/useMeasurements'
 import { useProfile } from './hooks/useProfile'
 import toast from 'react-hot-toast'
-import { LogOut, Plus, RefreshCw } from 'lucide-react'
+import { Plus, RefreshCw } from 'lucide-react'
 
 function Dashboard() {
   const { user, signOut } = useAuth()
@@ -101,10 +101,10 @@ function Dashboard() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-zinc-950 text-zinc-200 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-6xl font-semibold tracking-tighter mb-4">RecompTrack</h1>
-          <p className="text-xl text-zinc-400 mb-8">Track your body composition with precision.</p>
+      <div className="min-h-screen bg-zinc-950 text-zinc-200 flex items-center justify-center px-4">
+        <div className="text-center max-w-lg">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tighter mb-4">RecompTrack</h1>
+          <p className="text-base sm:text-xl text-zinc-400 mb-8">Track your body composition with precision.</p>
           <button
             onClick={() => setShowAuthModal(true)}
             className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 rounded-2xl font-medium"
@@ -119,50 +119,21 @@ function Dashboard() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-200">
-      <div className="max-w-5xl mx-auto p-6">
-        <header className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-x-3">
-            <div className="w-11 h-11 bg-emerald-500 rounded-2xl flex items-center justify-center">
-              <span className="text-white text-2xl">🏋️</span>
-            </div>
-            <div>
-              <span className="font-semibold text-3xl tracking-tighter">RecompTrack</span>
-              <span className="text-emerald-400 text-xs block -mt-1.5">FFMI + BODY RECOMP</span>
-            </div>
-          </div>
+      <div className="max-w-5xl mx-auto px-4 py-5 sm:px-6 sm:py-6">
+        <DashboardHeader
+          refetch={refetch}
+          onProfile={() => setShowProfile(true)}
+          onSignOut={signOut}
+        />
 
-          <div className="flex items-center gap-x-3">
-            <ImportCSV refetch={refetch} />
-            <button
-              onClick={() => window.location.href = '/api/withings/auth'}
-              className="flex items-center gap-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-2xl text-sm transition-colors"
-            >
-              Connect Withings
-            </button>
-            <WithingsSync refetch={refetch} />
-            <button
-              onClick={() => setShowProfile(true)}
-              className="flex items-center gap-x-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm transition-colors"
-            >
-              Profile
-            </button>
-            <button
-              onClick={signOut}
-              className="flex items-center gap-x-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm transition-colors"
-            >
-              <LogOut size={16} /> Sign Out
-            </button>
-          </div>
-        </header>
-
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-5xl font-semibold tracking-tighter">Dashboard</h1>
-            <p className="text-zinc-400 mt-1">Track your progress over time</p>
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tighter">Dashboard</h1>
+            <p className="text-zinc-400 mt-1 text-sm sm:text-base">Track your progress over time</p>
           </div>
           <button
             onClick={() => setShowQuickLog(true)}
-            className="flex items-center gap-x-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 rounded-2xl font-medium transition-colors"
+            className="flex items-center justify-center gap-x-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 rounded-2xl font-medium transition-colors w-full sm:w-auto shrink-0"
           >
             <Plus size={18} /> Quick Log
           </button>
@@ -171,21 +142,23 @@ function Dashboard() {
         <DashboardWidgets measurements={measurements} />
         <TrendsChart measurements={measurements} profile={profile} />
 
-        <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-semibold">Measurements</h2>
-            <div className="flex items-center gap-x-3">
+        <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8">
+          <div className="flex flex-col gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <h2 className="text-xl sm:text-2xl font-semibold">Measurements</h2>
               <span className="text-sm text-zinc-400">{measurements.length} total entries</span>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2">
               <ImportCSV refetch={refetch} />
               <button
                 onClick={handleDeleteAll}
-                className="flex items-center gap-x-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm transition-colors"
+                className="flex items-center justify-center gap-x-2 px-3 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm transition-colors w-full sm:w-auto"
               >
                 Delete All
               </button>
               <button
                 onClick={() => window.location.reload()}
-                className="flex items-center gap-x-2 px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 rounded-xl text-sm transition-colors"
+                className="flex items-center justify-center gap-x-2 px-3 py-2.5 bg-zinc-700 hover:bg-zinc-600 rounded-xl text-sm transition-colors w-full sm:w-auto"
               >
                 <RefreshCw size={14} /> Refresh
               </button>

@@ -5,9 +5,10 @@ import toast from 'react-hot-toast'
 
 interface WithingsSyncProps {
   refetch: () => Promise<void>
+  fullWidth?: boolean
 }
 
-export default function WithingsSync({ refetch }: WithingsSyncProps) {
+export default function WithingsSync({ refetch, fullWidth = false }: WithingsSyncProps) {
   const [isSyncing, setIsSyncing] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -81,11 +82,11 @@ export default function WithingsSync({ refetch }: WithingsSyncProps) {
   }
 
   return (
-    <div className="relative flex items-center" ref={menuRef}>
+    <div className={`relative flex items-center ${fullWidth ? 'w-full' : ''}`} ref={menuRef}>
       <button
         onClick={() => runSync(false)}
         disabled={isSyncing}
-        className="flex items-center gap-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-l-2xl text-sm transition-colors"
+        className={`flex items-center justify-center gap-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-l-2xl text-sm transition-colors ${fullWidth ? 'flex-1' : ''}`}
       >
         <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
         {isSyncing ? 'Syncing...' : 'Sync Now'}
@@ -94,7 +95,7 @@ export default function WithingsSync({ refetch }: WithingsSyncProps) {
       <button
         onClick={() => setShowAdvanced((open) => !open)}
         disabled={isSyncing}
-        className="flex items-center gap-x-1 px-3 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 rounded-r-2xl text-sm border-l border-emerald-600 transition-colors"
+        className={`flex items-center justify-center gap-x-1 px-3 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 rounded-r-2xl text-sm border-l border-emerald-600 transition-colors ${fullWidth ? 'shrink-0' : ''}`}
         aria-expanded={showAdvanced}
         aria-haspopup="menu"
       >
@@ -105,7 +106,7 @@ export default function WithingsSync({ refetch }: WithingsSyncProps) {
       {showAdvanced && (
         <div
           role="menu"
-          className="absolute top-full right-0 mt-2 w-56 bg-zinc-800 border border-zinc-700 rounded-2xl shadow-xl z-50 overflow-hidden"
+          className={`absolute top-full mt-2 w-full sm:w-56 bg-zinc-800 border border-zinc-700 rounded-2xl shadow-xl z-50 overflow-hidden ${fullWidth ? 'left-0' : 'right-0'}`}
         >
           <button
             role="menuitem"

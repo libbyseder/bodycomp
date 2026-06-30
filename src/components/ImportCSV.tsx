@@ -170,9 +170,9 @@ export default function ImportCSV({ refetch }: ImportCSVProps) {
   }
 
   return (
-    <label className="flex items-center gap-x-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm cursor-pointer transition-colors">
-      <Upload size={16} />
-      {isImporting ? 'Importing...' : 'Import CSV'}
+    <label className="flex items-center justify-center gap-x-2 px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm cursor-pointer transition-colors w-full lg:w-auto">
+      <Upload size={16} className="shrink-0" />
+      <span className="truncate">{isImporting ? 'Importing...' : 'Import CSV'}</span>
       <input
         type="file"
         accept=".csv"

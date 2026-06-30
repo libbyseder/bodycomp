@@ -80,8 +80,8 @@ export default function QuickLogModal({ isOpen, onClose, refetch }: QuickLogModa
   }
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-      <div className="bg-zinc-900 border border-zinc-700 rounded-3xl w-full max-w-md p-8 relative">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 sm:p-6 overflow-y-auto">
+      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl w-full max-w-md p-5 sm:p-8 relative my-auto max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <button
           onClick={onClose}
           className="absolute top-6 right-6 text-zinc-400 hover:text-white"
@@ -89,7 +89,7 @@ export default function QuickLogModal({ isOpen, onClose, refetch }: QuickLogModa
           <X size={20} />
         </button>
 
-        <h2 className="text-3xl font-semibold mb-8">Quick Log</h2>
+        <h2 className="text-2xl sm:text-3xl font-semibold mb-6 sm:mb-8">Quick Log</h2>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>

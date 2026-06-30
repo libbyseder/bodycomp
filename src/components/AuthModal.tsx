@@ -43,9 +43,9 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
       <div className="bg-zinc-900 border border-zinc-700 rounded-3xl w-full max-w-md overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-zinc-700">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight">
+        <div className="flex items-center justify-between p-5 sm:p-6 border-b border-zinc-700">
+          <div className="min-w-0 pr-4">
+            <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
               {mode === 'login' ? 'Welcome back' : 'Create account'}
             </h2>
             <p className="text-zinc-400 text-sm mt-1">

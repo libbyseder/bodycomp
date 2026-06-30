@@ -41,12 +41,12 @@ export default function DashboardWidgets({ measurements }: DashboardWidgetsProps
     : 0
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
       {/* Weight */}
-      <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6">
+      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
         <div className="flex items-center justify-between mb-2">
           <span className="text-emerald-400 text-sm font-medium tracking-wider">WEIGHT</span>
-          <span className="text-3xl font-semibold">{currentWeight}</span>
+          <span className="text-2xl sm:text-3xl font-semibold">{currentWeight}</span>
         </div>
         <div className="text-zinc-400 text-sm mb-4">lbs</div>
         {weightGoal && (
@@ -63,10 +63,10 @@ export default function DashboardWidgets({ measurements }: DashboardWidgetsProps
       </div>
 
       {/* Body Fat */}
-      <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6">
+      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
         <div className="flex items-center justify-between mb-2">
           <span className="text-orange-400 text-sm font-medium tracking-wider">BODY FAT</span>
-          <span className="text-3xl font-semibold">{currentBf}</span>
+          <span className="text-2xl sm:text-3xl font-semibold">{currentBf}</span>
         </div>
         <div className="text-zinc-400 text-sm mb-4">%</div>
         {bfGoal && (
@@ -83,10 +83,10 @@ export default function DashboardWidgets({ measurements }: DashboardWidgetsProps
       </div>
 
       {/* FFMI */}
-      <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6">
+      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
         <div className="flex items-center justify-between mb-2">
           <span className="text-blue-400 text-sm font-medium tracking-wider">FFMI</span>
-          <span className="text-3xl font-semibold">{currentFfmi ?? '—'}</span>
+          <span className="text-2xl sm:text-3xl font-semibold">{currentFfmi ?? '—'}</span>
         </div>
         <div className="text-zinc-400 text-sm mb-4">score</div>
         {ffmiGoal && currentFfmi && (
@@ -103,10 +103,10 @@ export default function DashboardWidgets({ measurements }: DashboardWidgetsProps
       </div>
 
       {/* Lean Mass */}
-      <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6">
+      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
         <div className="flex items-center justify-between mb-2">
           <span className="text-teal-400 text-sm font-medium tracking-wider">LEAN MASS</span>
-          <span className="text-3xl font-semibold">{currentLeanMass ?? '—'}</span>
+          <span className="text-2xl sm:text-3xl font-semibold">{currentLeanMass ?? '—'}</span>
         </div>
         <div className="text-zinc-400 text-sm">lbs</div>
       </div>

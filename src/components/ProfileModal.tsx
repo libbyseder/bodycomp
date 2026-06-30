@@ -125,13 +125,13 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
   const ffmiCategories = getFfmiCategories()
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-      <div className="bg-zinc-900 border border-zinc-700 rounded-3xl w-full max-w-md p-8 relative">
-        <button onClick={onClose} className="absolute top-6 right-6 text-zinc-400 hover:text-white">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 sm:p-6 overflow-y-auto">
+      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl w-full max-w-md p-5 sm:p-8 relative my-auto max-h-[calc(100dvh-2rem)] overflow-y-auto">
+        <button onClick={onClose} className="absolute top-5 right-5 sm:top-6 sm:right-6 text-zinc-400 hover:text-white">
           <X size={20} />
         </button>
 
-        <h2 className="text-3xl font-semibold mb-8">Profile &amp; Goals</h2>
+        <h2 className="text-2xl sm:text-3xl font-semibold mb-6 sm:mb-8 pr-8">Profile &amp; Goals</h2>
 
         <div className="mb-6">
           <label className="block text-sm text-zinc-400 mb-2">Name</label>
@@ -144,7 +144,7 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 sm:mb-8">
           <div>
             <label className="block text-sm text-zinc-400 mb-2">Height (inches)</label>
             <input
@@ -173,7 +173,7 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
           <h3 className="text-lg font-medium mb-4">Goals</h3>
         </div>
 
-        <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 sm:mb-8">
           <div>
             <label className="block text-sm text-zinc-400 mb-2">Target Weight (lbs)</label>
             <input
@@ -200,7 +200,9 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
                 type="button"
                 onMouseEnter={() => setShowFfmiTooltip(true)}
                 onMouseLeave={() => setShowFfmiTooltip(false)}
+                onClick={() => setShowFfmiTooltip((v) => !v)}
                 className="text-emerald-400 hover:text-emerald-300"
+                aria-label="FFMI category info"
               >
                 <Info size={14} />
               </button>
@@ -214,7 +216,7 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
             />
 
             {showFfmiTooltip && (
-              <div className="absolute top-full mt-2 left-0 z-50 w-72 bg-zinc-800 border border-zinc-700 rounded-2xl p-4 text-sm shadow-xl">
+              <div className="absolute top-full mt-2 left-0 right-0 sm:right-auto z-50 sm:w-72 bg-zinc-800 border border-zinc-700 rounded-2xl p-4 text-sm shadow-xl">
                 <div className="font-medium mb-3 text-white">FFMI Categories</div>
                 <div className="space-y-1.5 text-xs">
                   {ffmiCategories.map((cat, index) => (

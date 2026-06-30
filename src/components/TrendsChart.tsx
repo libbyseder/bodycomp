@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -50,10 +50,27 @@ interface DailyAverage {
   count: number
 }
 
+function useIsMobile(breakpoint = 640) {
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < breakpoint
+  )
+
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${breakpoint - 1}px)`)
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches)
+    setIsMobile(mq.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [breakpoint])
+
+  return isMobile
+}
+
 export default function TrendsChart({ measurements, profile }: TrendsChartProps) {
   const [period, setPeriod] = useState<TimePeriod>('month')
   const [offset, setOffset] = useState(0)
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const isMobile = useIsMobile()
 
   const [visibility, setVisibility] = useState<VisibilitySettings>({
     weight: true,
@@ -204,7 +221,12 @@ export default function TrendsChart({ measurements, profile }: TrendsChartProps)
     plugins: {
       legend: {
         position: 'bottom' as const,
-        labels: { padding: 20, usePointStyle: true },
+        labels: {
+          padding: isMobile ? 12 : 20,
+          usePointStyle: true,
+          boxWidth: isMobile ? 8 : 12,
+          font: { size: isMobile ? 10 : 12 },
+        },
       },
       tooltip: {
         mode: 'index' as const,
@@ -236,22 +258,39 @@ export default function TrendsChart({ measurements, profile }: TrendsChartProps)
       },
       y: {
         position: 'left' as const,
-        title: { text: 'Weight (lbs)', color: '#10b981' },
-        ticks: { color: '#10b981' },
+        title: {
+          display: !isMobile,
+          text: 'Weight (lbs)',
+          color: '#10b981',
+          font: { size: isMobile ? 10 : 12 },
+        },
+        ticks: { color: '#10b981', font: { size: isMobile ? 10 : 12 }, maxTicksLimit: isMobile ? 5 : 8 },
         grid: { color: '#27272a' },
       },
       y1: {
         position: 'right' as const,
-        offset: true,
-        title: { text: 'Body Fat %', color: '#f59e0b' },
-        ticks: { color: '#f59e0b' },
+        offset: !isMobile,
+        display: !isMobile || visibility.bodyFat || visibility.bfGoal,
+        title: {
+          display: !isMobile,
+          text: 'Body Fat %',
+          color: '#f59e0b',
+          font: { size: isMobile ? 10 : 12 },
+        },
+        ticks: { color: '#f59e0b', font: { size: isMobile ? 10 : 12 }, maxTicksLimit: isMobile ? 4 : 8 },
         grid: { drawOnChartArea: false },
       },
       y2: {
         position: 'right' as const,
-        offset: true,
-        title: { text: 'FFMI', color: '#3b82f6' },
-        ticks: { color: '#3b82f6', stepSize: 1 },
+        offset: !isMobile,
+        display: !isMobile || visibility.ffmi || visibility.ffmiGoal,
+        title: {
+          display: !isMobile,
+          text: 'FFMI',
+          color: '#3b82f6',
+          font: { size: isMobile ? 10 : 12 },
+        },
+        ticks: { color: '#3b82f6', stepSize: 1, font: { size: isMobile ? 10 : 12 }, maxTicksLimit: isMobile ? 4 : 8 },
         grid: { drawOnChartArea: false },
         beginAtZero: false,
       },
@@ -262,39 +301,41 @@ export default function TrendsChart({ measurements, profile }: TrendsChartProps)
     setVisibility(v => ({ ...v, [key]: !v[key] }))
 
   return (
-    <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-8 mb-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+    <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 sm:mb-6 gap-3 sm:gap-4">
         <div>
-          <h2 className="text-2xl font-semibold">Trends</h2>
+          <h2 className="text-xl sm:text-2xl font-semibold">Trends</h2>
           <p className="text-zinc-400 text-sm mt-1">{label}</p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <button onClick={() => setOffset(o => o + 1)} className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm">
-            ← Prev
-          </button>
-
-          {(['week', 'month', 'quarter', 'year', 'all'] as TimePeriod[]).map(p => (
-            <button
-              key={p}
-              onClick={() => { setPeriod(p); setOffset(0) }}
-              className={`px-4 py-1.5 rounded-2xl text-sm ${period === p ? 'bg-emerald-600 text-white' : 'bg-zinc-800 hover:bg-zinc-700'}`}
-            >
-              {p[0].toUpperCase() + p.slice(1)}
+        <div className="flex flex-col gap-2 sm:gap-0 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 -mx-1 px-1 sm:mx-0 sm:px-0">
+            <button onClick={() => setOffset(o => o + 1)} className="shrink-0 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm">
+              ← Prev
             </button>
-          ))}
 
-          <button
-            onClick={() => offset > 0 && setOffset(o => o - 1)}
-            disabled={offset === 0}
-            className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 rounded-xl text-sm"
-          >
-            Next →
-          </button>
+            {(['week', 'month', 'quarter', 'year', 'all'] as TimePeriod[]).map(p => (
+              <button
+                key={p}
+                onClick={() => { setPeriod(p); setOffset(0) }}
+                className={`shrink-0 px-3 sm:px-4 py-1.5 rounded-2xl text-sm whitespace-nowrap ${period === p ? 'bg-emerald-600 text-white' : 'bg-zinc-800 hover:bg-zinc-700'}`}
+              >
+                {p[0].toUpperCase() + p.slice(1)}
+              </button>
+            ))}
+
+            <button
+              onClick={() => offset > 0 && setOffset(o => o - 1)}
+              disabled={offset === 0}
+              className="shrink-0 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 rounded-xl text-sm"
+            >
+              Next →
+            </button>
+          </div>
 
           <button
             onClick={() => setShowAdvanced(!showAdvanced)}
-            className="ml-2 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm flex items-center gap-x-1"
+            className="sm:ml-2 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm flex items-center justify-center gap-x-1 w-full sm:w-auto"
           >
             <Settings size={16} /> Advanced
           </button>
@@ -320,7 +361,7 @@ export default function TrendsChart({ measurements, profile }: TrendsChartProps)
         </div>
       )}
 
-      <div className="h-[420px]">
+      <div className="h-[260px] sm:h-[340px] lg:h-[420px]">
         {data.length > 0 ? (
           <Line data={chartData} options={options} />
         ) : (

@@ -18,10 +18,21 @@ export default function MeasurementsTable({ measurements, onDelete, profile }: M
   const startIndex = (currentPage - 1) * itemsPerPage
   const currentMeasurements = measurements.slice(startIndex, startIndex + itemsPerPage)
 
+  const getMetrics = (m: Measurement) => {
+    const leanMass = calculateLeanMassLbs(m.weight, m.body_fat)
+    const ffmi = m.height_inches
+      ? calculateFFMI(m.weight, m.body_fat, m.height_inches)
+      : (profile?.height_inches
+          ? calculateFFMI(m.weight, m.body_fat, profile.height_inches)
+          : null)
+    return { leanMass, ffmi }
+  }
+
   return (
     <div>
-      <div className="overflow-x-auto">
-        <table className="w-full">
+      {/* Desktop table */}
+      <div className="hidden md:block overflow-x-auto -mx-2 px-2">
+        <table className="w-full min-w-[640px]">
           <thead>
             <tr className="border-b border-zinc-700 text-left text-sm text-zinc-400">
               <th className="pb-3 pr-4">Date</th>
@@ -35,13 +46,7 @@ export default function MeasurementsTable({ measurements, onDelete, profile }: M
           </thead>
           <tbody>
             {currentMeasurements.map((m) => {
-              const leanMass = calculateLeanMassLbs(m.weight, m.body_fat)
-              const ffmi = m.height_inches
-                ? calculateFFMI(m.weight, m.body_fat, m.height_inches)
-                : (profile?.height_inches
-                    ? calculateFFMI(m.weight, m.body_fat, profile.height_inches)
-                    : null)
-
+              const { leanMass, ffmi } = getMetrics(m)
               return (
                 <tr key={m.id} className="border-b border-zinc-800 last:border-none">
                   <td className="py-3 pr-4 text-white text-sm">{m.date}</td>
@@ -73,25 +78,74 @@ export default function MeasurementsTable({ measurements, onDelete, profile }: M
         </table>
       </div>
 
+      {/* Mobile cards */}
+      <div className="md:hidden space-y-3">
+        {currentMeasurements.map((m) => {
+          const { leanMass, ffmi } = getMetrics(m)
+          return (
+            <div
+              key={m.id}
+              className="bg-zinc-800/80 border border-zinc-700 rounded-2xl p-4"
+            >
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div>
+                  <p className="text-white font-medium">{m.date}</p>
+                  <p className="text-emerald-400 text-sm mt-0.5">
+                    {m.log_count ?? 1} log{(m.log_count ?? 1) === 1 ? '' : 's'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => onDelete(m.id)}
+                  className="text-zinc-500 hover:text-red-400 p-1 transition-colors shrink-0"
+                  aria-label={`Delete measurement for ${m.date}`}
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-zinc-500 text-xs">Weight</p>
+                  <p className="font-medium">{m.weight} lbs</p>
+                </div>
+                <div>
+                  <p className="text-zinc-500 text-xs">Body Fat</p>
+                  <p>{m.body_fat ? `${m.body_fat}%` : '—'}</p>
+                </div>
+                <div>
+                  <p className="text-zinc-500 text-xs">Lean Mass</p>
+                  <p className="text-emerald-400">{leanMass ? `${leanMass} lbs` : '—'}</p>
+                </div>
+                <div>
+                  <p className="text-zinc-500 text-xs">FFMI</p>
+                  <p className="text-emerald-400">{ffmi ?? '—'}</p>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
       {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-6 text-sm">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-6 text-sm">
           <button
             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 rounded-xl transition-colors"
+            className="w-full sm:w-auto px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 rounded-xl transition-colors"
           >
             Previous
           </button>
 
-          <span className="text-zinc-400">
+          <span className="text-zinc-400 text-center">
             Page {currentPage} of {totalPages}
-            <span className="ml-2 text-zinc-500">({measurements.length} total)</span>
+            <span className="block sm:inline sm:ml-2 text-zinc-500">
+              ({measurements.length} total)
+            </span>
           </span>
 
           <button
             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
-            className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 rounded-xl transition-colors"
+            className="w-full sm:w-auto px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 rounded-xl transition-colors"
           >
             Next
           </button>
