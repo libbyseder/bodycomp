@@ -138,9 +138,11 @@ export default function ImportCSV({ refetch }: ImportCSVProps) {
               })
             }
 
+            const failedDays = uniqueDays - daysUpdated
             toast.success(
-              `Imported ${totalLogs} logs across ${daysUpdated} day${daysUpdated === 1 ? '' : 's'}. ` +
-              `Click Sync Now to add Withings data.`
+              `Imported ${totalLogs} logs across ${daysUpdated} day${daysUpdated === 1 ? '' : 's'}` +
+              (failedDays > 0 ? ` (${failedDays} failed)` : '') +
+              `. Click Sync Now to add Withings data.`
             )
             await refetch()
           } else {
