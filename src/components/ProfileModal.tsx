@@ -86,10 +86,12 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
     onClose()
 
     // Then refresh profile data in background
-    if (onSave) {
-      onSave().catch((e) => console.error('refetchProfile error:', e))
-    }
+if (onSave) {
+  const result = onSave()
+  if (result && typeof result.then === 'function') {
+    result.catch((e: any) => console.error('refetchProfile error:', e))
   }
+}
 
   const getFfmiCategories = () => {
     const gender = formData.gender?.toLowerCase()
