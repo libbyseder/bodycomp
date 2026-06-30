@@ -13,12 +13,10 @@ export default function DashboardWidgets({ measurements }: DashboardWidgetsProps
   }
 
   const latest = measurements[0]
-
   const currentWeight = latest.weight
   const currentBf = latest.body_fat ?? 0
-
-  const currentLeanMass = latest.body_fat 
-    ? parseFloat((latest.weight * (1 - latest.body_fat / 100)).toFixed(1)) 
+  const currentLeanMass = latest.body_fat
+    ? parseFloat((latest.weight * (1 - latest.body_fat / 100)).toFixed(1))
     : null
 
   // Calculate current FFMI using profile height as fallback
@@ -27,21 +25,18 @@ export default function DashboardWidgets({ measurements }: DashboardWidgetsProps
     ? parseFloat(((latest.weight / 2.20462) * (1 - latest.body_fat / 100) / Math.pow(heightForCalc * 0.0254, 2)).toFixed(2))
     : null
 
+  // === Goals from Profile (fixed field name) ===
   const weightGoal = profile?.target_weight
-  const bfGoal = profile?.target_bf
+  const bfGoal = profile?.target_body_fat        // ← Fixed
   const ffmiGoal = profile?.target_ffmi
 
   // === Proper Progress Calculations ===
-
   // Weight progress (assumes goal is lower = fat loss)
   let weightProgress = 0
   if (weightGoal) {
     if (currentWeight <= weightGoal) {
       weightProgress = 100
     } else {
-      // Simple linear progress toward goal
-      weightProgress = Math.max(0, Math.min(100, ((currentWeight - weightGoal) / (currentWeight - weightGoal)) * 100))
-      // Better approach: show how close we are (this is a simplified version)
       weightProgress = Math.max(0, Math.min(100, 100 - ((currentWeight - weightGoal) / currentWeight) * 100))
     }
   }
@@ -52,7 +47,6 @@ export default function DashboardWidgets({ measurements }: DashboardWidgetsProps
     if (currentBf <= bfGoal) {
       bfProgress = 100
     } else {
-      bfProgress = Math.max(0, Math.min(100, ((bfGoal - currentBf) / (bfGoal - currentBf)) * 100))
       bfProgress = Math.max(0, Math.min(100, 100 - ((currentBf - bfGoal) / currentBf) * 100))
     }
   }
@@ -76,7 +70,7 @@ export default function DashboardWidgets({ measurements }: DashboardWidgetsProps
           <span className="text-3xl font-semibold">{currentWeight}</span>
         </div>
         <div className="text-zinc-400 text-sm mb-4">lbs</div>
-        
+
         {weightGoal && (
           <div>
             <div className="flex justify-between text-xs text-zinc-400 mb-1">
@@ -84,7 +78,7 @@ export default function DashboardWidgets({ measurements }: DashboardWidgetsProps
               <span className="text-emerald-400">{Math.round(weightProgress)}% to goal</span>
             </div>
             <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
-              <div 
+              <div
                 className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all"
                 style={{ width: `${weightProgress}%` }}
               />
@@ -100,7 +94,7 @@ export default function DashboardWidgets({ measurements }: DashboardWidgetsProps
           <span className="text-3xl font-semibold">{currentBf}</span>
         </div>
         <div className="text-zinc-400 text-sm mb-4">%</div>
-        
+
         {bfGoal && (
           <div>
             <div className="flex justify-between text-xs text-zinc-400 mb-1">
@@ -108,7 +102,7 @@ export default function DashboardWidgets({ measurements }: DashboardWidgetsProps
               <span className="text-orange-400">{Math.round(bfProgress)}% to goal</span>
             </div>
             <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
-              <div 
+              <div
                 className="h-full bg-gradient-to-r from-orange-500 to-yellow-400 rounded-full transition-all"
                 style={{ width: `${bfProgress}%` }}
               />
@@ -124,7 +118,7 @@ export default function DashboardWidgets({ measurements }: DashboardWidgetsProps
           <span className="text-3xl font-semibold">{currentFfmi ?? '—'}</span>
         </div>
         <div className="text-zinc-400 text-sm mb-4">score</div>
-        
+
         {ffmiGoal && currentFfmi && (
           <div>
             <div className="flex justify-between text-xs text-zinc-400 mb-1">
@@ -132,7 +126,7 @@ export default function DashboardWidgets({ measurements }: DashboardWidgetsProps
               <span className="text-blue-400">{Math.round(ffmiProgress)}% to goal</span>
             </div>
             <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
-              <div 
+              <div
                 className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full transition-all"
                 style={{ width: `${ffmiProgress}%` }}
               />
