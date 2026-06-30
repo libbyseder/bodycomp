@@ -28,7 +28,7 @@ export default function DashboardWidgets({ measurements }: DashboardWidgetsProps
   const bfGoal = profile?.target_body_fat ?? (profile as any)?.target_bf
   const ffmiGoal = profile?.target_ffmi
 
-  // Fixed progress calculations (no division by zero)
+  // Fixed progress calculations
   const weightProgress = weightGoal
     ? currentWeight <= weightGoal
       ? 100
