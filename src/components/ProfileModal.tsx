@@ -1,50 +1,93 @@
-import { useState } from 'react'
-import { useProfile } from '../hooks/useProfile'
+import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
 import { X, Info } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface ProfileModalProps {
   isOpen: boolean
   onClose: () => void
+  onSave?: () => void | Promise<void>   // ← Added
 }
 
-export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
-  const { profile, updateProfile } = useProfile()
-  
+export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalProps) {
   const [formData, setFormData] = useState({
-    name: profile?.name || '',
-    height_inches: profile?.height_inches || 63.5,
-    gender: (profile?.gender as "male" | "female" | null) || null,
-    target_weight: profile?.target_weight || 124,
-    target_bf: profile?.target_bf || 21,
-    target_ffmi: profile?.target_ffmi || 17.5,
+    name: '',
+    height_inches: 63.5,
+    gender: null as "male" | "female" | null,
+    target_weight: 124,
+    target_body_fat: 23,           // ← Changed from target_bf
+    target_ffmi: 18,
   })
-
   const [showFfmiTooltip, setShowFfmiTooltip] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  // Load current profile when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const loadProfile = async () => {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+
+        const { data } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single()
+
+        if (data) {
+          setFormData({
+            name: data.name || '',
+            height_inches: data.height_inches || 63.5,
+            gender: data.gender || null,
+            target_weight: data.target_weight || 124,
+            target_body_fat: data.target_body_fat || 23,   // ← Changed
+            target_ffmi: data.target_ffmi || 18,
+          })
+        }
+      }
+      loadProfile()
+    }
+  }, [isOpen])
 
   if (!isOpen) return null
 
   const handleSave = async () => {
-    const { error } = await updateProfile({
-      name: formData.name,
-      height_inches: formData.height_inches,
-      gender: formData.gender,
-      target_weight: formData.target_weight,
-      target_bf: formData.target_bf,
-      target_ffmi: formData.target_ffmi,
-    })
+    setLoading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      toast.error('No user found')
+      setLoading(false)
+      return
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .upsert({
+        user_id: user.id,
+        name: formData.name,
+        height_inches: formData.height_inches,
+        gender: formData.gender,
+        target_weight: formData.target_weight,
+        target_body_fat: formData.target_body_fat,   // ← Changed
+        target_ffmi: formData.target_ffmi,
+      })
+
+    setLoading(false)
 
     if (error) {
       toast.error('Failed to save profile')
     } else {
       toast.success('Profile updated')
+      
+      if (onSave) {
+        await onSave()           // ← Call onSave after successful save
+      }
       onClose()
     }
   }
 
   const getFfmiCategories = () => {
     const gender = formData.gender?.toLowerCase()
-
     if (gender === 'male') {
       return [
         { range: '< 16', label: 'Below Average', color: 'text-red-400' },
@@ -53,8 +96,8 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
         { range: '20 – 22', label: 'Excellent', color: 'text-emerald-400' },
         { range: '> 22', label: 'Superior / Elite', color: 'text-emerald-400' },
       ]
-    } 
-    
+    }
+   
     if (gender === 'female') {
       return [
         { range: '< 14', label: 'Below Average', color: 'text-red-400' },
@@ -64,7 +107,6 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
         { range: '> 20', label: 'Superior / Elite', color: 'text-emerald-400' },
       ]
     }
-
     return [
       { range: 'Men: < 16 | Women: < 14', label: 'Below Average', color: 'text-red-400' },
       { range: 'Men: 16-18 | Women: 14-16', label: 'Average', color: 'text-yellow-400' },
@@ -82,7 +124,6 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
         <button onClick={onClose} className="absolute top-6 right-6 text-zinc-400 hover:text-white">
           <X size={20} />
         </button>
-
         <h2 className="text-3xl font-semibold mb-8">Profile &amp; Goals</h2>
 
         <div className="mb-6">
@@ -107,7 +148,6 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
               className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
             />
           </div>
-
           <div>
             <label className="block text-sm text-zinc-400 mb-2">Gender</label>
             <select
@@ -136,18 +176,16 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
               className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
             />
           </div>
-
           <div>
             <label className="block text-sm text-zinc-400 mb-2">Target Body Fat %</label>
             <input
               type="number"
               step="0.1"
-              value={formData.target_bf}
-              onChange={(e) => setFormData({ ...formData, target_bf: parseFloat(e.target.value) || 21 })}
+              value={formData.target_body_fat}           // ← Changed
+              onChange={(e) => setFormData({ ...formData, target_body_fat: parseFloat(e.target.value) || 23 })}
               className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
             />
           </div>
-
           <div className="relative">
             <label className="block text-sm text-zinc-400 mb-2 flex items-center gap-x-1">
               Target FFMI
@@ -167,7 +205,6 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
               onChange={(e) => setFormData({ ...formData, target_ffmi: parseFloat(e.target.value) || 17.5 })}
               className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
             />
-
             {showFfmiTooltip && (
               <div className="absolute top-full mt-2 left-0 z-50 w-72 bg-zinc-800 border border-zinc-700 rounded-2xl p-4 text-sm shadow-xl">
                 <div className="font-medium mb-3 text-white">FFMI Categories</div>
@@ -180,8 +217,8 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                   ))}
                 </div>
                 <div className="mt-3 pt-3 border-t border-zinc-700 text-[10px] text-zinc-500">
-                  {formData.gender 
-                    ? `Showing categories for ${formData.gender}s` 
+                  {formData.gender
+                    ? `Showing categories for ${formData.gender}s`
                     : 'Select gender to see specific ranges'}
                 </div>
               </div>
@@ -198,9 +235,10 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
           </button>
           <button
             onClick={handleSave}
-            className="flex-1 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors"
+            disabled={loading}
+            className="flex-1 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors disabled:opacity-50"
           >
-            Save Changes
+            {loading ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </div>
