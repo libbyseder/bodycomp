@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { upsertDailyMeasurement } from '../lib/upsertDailyMeasurement'
 import { useAuth } from '../contexts/AuthContext'
 
 export interface Measurement {
@@ -7,9 +8,10 @@ export interface Measurement {
   user_id: string
   date: string
   logged_at?: string | null
-  withings_grpid?: number | null
   weight: number
   body_fat: number | null
+  log_count?: number
+  body_fat_log_count?: number
   height_inches: number | null
   gender: "male" | "female" | null
   created_at: string
@@ -28,7 +30,6 @@ export function useMeasurements() {
       .from('measurements')
       .select('*')
       .eq('user_id', user.id)
-      .order('logged_at', { ascending: false, nullsFirst: false })
       .order('date', { ascending: false })
 
     if (!error && data) {
@@ -44,15 +45,10 @@ export function useMeasurements() {
   ) => {
     if (!user) return { error: 'No user' }
 
-    const { error } = await supabase
-      .from('measurements')
-      .insert({
-        user_id: user.id,
-        date,
-        logged_at: new Date().toISOString(),
-        weight,
-        body_fat,
-      })
+    const { error } = await upsertDailyMeasurement(supabase, user.id, date, {
+      weight,
+      body_fat,
+    })
 
     if (error) {
       return { error }

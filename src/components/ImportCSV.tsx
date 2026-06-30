@@ -1,19 +1,14 @@
 import { useState } from 'react'
 import Papa from 'papaparse'
 import { supabase } from '../lib/supabase'
-import { parseCsvDate, buildLoggedAt } from '../lib/parseCsvDate'
+import { parseCsvDate } from '../lib/parseCsvDate'
+import { mergeAggregates, readingToAggregate, type DailyAggregate } from '../lib/mergeMeasurement'
+import { upsertDailyAggregate } from '../lib/upsertDailyMeasurement'
 import { Upload } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface ImportCSVProps {
   refetch: () => Promise<void>
-}
-
-interface CsvRow {
-  isoDate: string
-  weight: number
-  bodyFat: number | null
-  loggedAt: string
 }
 
 export default function ImportCSV({ refetch }: ImportCSVProps) {
@@ -38,7 +33,8 @@ export default function ImportCSV({ refetch }: ImportCSVProps) {
           }
 
           const errors: string[] = []
-          const validRows: CsvRow[] = []
+          const csvByDate: Record<string, DailyAggregate> = {}
+          let totalLogs = 0
 
           for (let i = 0; i < (results.data as any[]).length; i++) {
             const row = (results.data as any[])[i]
@@ -49,7 +45,6 @@ export default function ImportCSV({ refetch }: ImportCSVProps) {
               rawBodyFat !== undefined && rawBodyFat !== '' && rawBodyFat !== null
                 ? parseFloat(rawBodyFat)
                 : null
-            const rawTime = row.time || row.Time || row.TIME
 
             if (!rawDate || isNaN(weight)) {
               errors.push(`Row ${i + 1}: missing or invalid date/weight`)
@@ -62,74 +57,34 @@ export default function ImportCSV({ refetch }: ImportCSVProps) {
               continue
             }
 
-            const loggedAt = buildLoggedAt(isoDate, rawTime ? String(rawTime) : undefined, i)
-            if (!loggedAt) {
-              errors.push(`Row ${i + 1}: could not parse time for date "${isoDate}"`)
-              continue
-            }
+            const bodyFat = parsedBodyFat !== null && !isNaN(parsedBodyFat) ? parsedBodyFat : null
+            const reading = readingToAggregate({ weight, body_fat: bodyFat })
 
-            validRows.push({
-              isoDate,
-              weight,
-              bodyFat: parsedBodyFat !== null && !isNaN(parsedBodyFat) ? parsedBodyFat : null,
-              loggedAt,
-            })
+            csvByDate[isoDate] = mergeAggregates(csvByDate[isoDate] || null, reading)
+            totalLogs++
           }
 
-          if (validRows.length === 0) {
+          if (totalLogs === 0) {
             toast.error('No valid measurements found in CSV')
             if (errors.length > 0) console.warn('CSV import errors:', errors)
             return
           }
 
-          // Insert in batches to reduce timeouts on large files
-          const BATCH_SIZE = 50
-          let imported = 0
+          let daysUpdated = 0
 
-          for (let i = 0; i < validRows.length; i += BATCH_SIZE) {
-            const batch = validRows.slice(i, i + BATCH_SIZE).map((row) => {
-              const record: {
-                user_id: string
-                date: string
-                logged_at: string
-                weight: number
-                body_fat?: number
-              } = {
-                user_id: user.id,
-                date: row.isoDate,
-                logged_at: row.loggedAt,
-                weight: row.weight,
-              }
-              if (row.bodyFat !== null) {
-                record.body_fat = row.bodyFat
-              }
-              return record
-            })
-
-            const { error } = await supabase.from('measurements').insert(batch)
-
+          for (const [isoDate, csvAggregate] of Object.entries(csvByDate)) {
+            const { error } = await upsertDailyAggregate(supabase, user.id, isoDate, csvAggregate)
             if (error) {
-              // Fall back to one-by-one so a single bad row doesn't drop the whole batch
-              for (const record of batch) {
-                const { error: rowError } = await supabase.from('measurements').insert(record)
-                if (rowError) {
-                  errors.push(`Error on ${record.date}: ${rowError.message}`)
-                } else {
-                  imported++
-                }
-              }
+              errors.push(`Error on ${isoDate}: ${error.message}`)
             } else {
-              imported += batch.length
+              daysUpdated++
             }
           }
 
-          if (imported > 0) {
-            const skipped = validRows.length - imported
-            if (skipped > 0) {
-              toast.success(`Imported ${imported} of ${validRows.length} measurements`)
-            } else {
-              toast.success(`Imported ${imported} measurements from CSV`)
-            }
+          if (daysUpdated > 0) {
+            toast.success(
+              `Imported ${totalLogs} logs across ${daysUpdated} day${daysUpdated === 1 ? '' : 's'}`
+            )
             await refetch()
           } else {
             toast.error('No measurements were imported')

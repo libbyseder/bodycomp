@@ -14,26 +14,9 @@ export default function MeasurementsTable({ measurements, onDelete, profile }: M
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 25
 
-  // Calculate how many measurements per day
-  const logsPerDay: Record<string, number> = {}
-  measurements.forEach(m => {
-    logsPerDay[m.date] = (logsPerDay[m.date] || 0) + 1
-  })
-
   const totalPages = Math.ceil(measurements.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const currentMeasurements = measurements.slice(startIndex, startIndex + itemsPerPage)
-
-  const formatDateCell = (m: Measurement) => {
-    if (m.logged_at && (logsPerDay[m.date] || 1) > 1) {
-      const time = new Date(m.logged_at).toLocaleTimeString([], {
-        hour: 'numeric',
-        minute: '2-digit',
-      })
-      return `${m.date} ${time}`
-    }
-    return m.date
-  }
 
   return (
     <div>
@@ -53,17 +36,17 @@ export default function MeasurementsTable({ measurements, onDelete, profile }: M
           <tbody>
             {currentMeasurements.map((m) => {
               const leanMass = calculateLeanMassLbs(m.weight, m.body_fat)
-              const ffmi = m.height_inches 
+              const ffmi = m.height_inches
                 ? calculateFFMI(m.weight, m.body_fat, m.height_inches)
-                : (profile?.height_inches 
-                    ? calculateFFMI(m.weight, m.body_fat, profile.height_inches) 
+                : (profile?.height_inches
+                    ? calculateFFMI(m.weight, m.body_fat, profile.height_inches)
                     : null)
 
               return (
                 <tr key={m.id} className="border-b border-zinc-800 last:border-none">
-                  <td className="py-3 pr-4 text-white text-sm">{formatDateCell(m)}</td>
+                  <td className="py-3 pr-4 text-white text-sm">{m.date}</td>
                   <td className="py-3 pr-4 text-emerald-400 font-medium text-sm">
-                    {logsPerDay[m.date] || 1}
+                    {m.log_count ?? 1}
                   </td>
                   <td className="py-3 pr-4 font-medium">{m.weight} lbs</td>
                   <td className="py-3 pr-4 text-zinc-300 text-sm">
@@ -76,8 +59,8 @@ export default function MeasurementsTable({ measurements, onDelete, profile }: M
                     {ffmi ?? '—'}
                   </td>
                   <td className="py-3">
-                    <button 
-                      onClick={() => onDelete(m.id)} 
+                    <button
+                      onClick={() => onDelete(m.id)}
                       className="text-zinc-500 hover:text-red-400 p-1 transition-colors"
                     >
                       <Trash2 size={15} />
@@ -90,23 +73,22 @@ export default function MeasurementsTable({ measurements, onDelete, profile }: M
         </table>
       </div>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-6 text-sm">
-          <button 
+          <button
             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
             disabled={currentPage === 1}
             className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 rounded-xl transition-colors"
           >
             Previous
           </button>
-          
+
           <span className="text-zinc-400">
-            Page {currentPage} of {totalPages} 
+            Page {currentPage} of {totalPages}
             <span className="ml-2 text-zinc-500">({measurements.length} total)</span>
           </span>
 
-          <button 
+          <button
             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
             className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 rounded-xl transition-colors"

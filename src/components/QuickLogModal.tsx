@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { upsertDailyMeasurement } from '../lib/upsertDailyMeasurement'
 import { X } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -45,26 +46,11 @@ export default function QuickLogModal({ isOpen, onClose, refetch }: QuickLogModa
 
       const parsedWeight = parseFloat(weight)
       const parsedBodyFat = bodyFat ? parseFloat(bodyFat) : null
-      const loggedAt = new Date().toISOString()
 
-      const row: {
-        user_id: string
-        date: string
-        logged_at: string
-        weight: number
-        body_fat?: number
-      } = {
-        user_id: user.id,
-        date,
-        logged_at: loggedAt,
+      const { error, merged } = await upsertDailyMeasurement(supabase, user.id, date, {
         weight: parsedWeight,
-      }
-
-      if (parsedBodyFat !== null) {
-        row.body_fat = parsedBodyFat
-      }
-
-      const { error } = await supabase.from('measurements').insert(row)
+        body_fat: parsedBodyFat,
+      })
 
       if (error) {
         toast.error(`Failed to save: ${error.message}`)
@@ -72,9 +58,11 @@ export default function QuickLogModal({ isOpen, onClose, refetch }: QuickLogModa
         return
       }
 
-      toast.success('Measurement saved!')
+      const logLabel = merged && merged.log_count > 1
+        ? ` (${merged.log_count} logs today, averaged)`
+        : ''
+      toast.success(`Measurement saved!${logLabel}`)
 
-      // Close immediately — same pattern as ProfileModal
       onClose()
 
       if (refetch) {

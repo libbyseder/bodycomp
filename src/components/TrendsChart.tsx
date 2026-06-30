@@ -65,51 +65,31 @@ export default function TrendsChart({ measurements, profile }: TrendsChartProps)
   })
 
   const sorted = useMemo(
-    () => [...measurements].sort((a, b) => {
-      const aTime = a.logged_at || a.date
-      const bTime = b.logged_at || b.date
-      return aTime.localeCompare(bTime)
-    }),
+    () => [...measurements].sort((a, b) => a.date.localeCompare(b.date)),
     [measurements]
   )
 
   const { data, label } = useMemo(() => {
     if (sorted.length === 0) return { data: [] as DailyAverage[], label: '' }
 
-    // Group and average by day
-    const grouped: Record<string, { weight: number[]; body_fat: number[] }> = {}
-
-    sorted.forEach(m => {
-      const dateOnly = new Date(m.date).toISOString().split('T')[0]
-      if (!grouped[dateOnly]) grouped[dateOnly] = { weight: [], body_fat: [] }
-      grouped[dateOnly].weight.push(m.weight)
-      if (m.body_fat !== null) grouped[dateOnly].body_fat.push(m.body_fat)
-    })
-
-    const averaged: DailyAverage[] = Object.entries(grouped).map(([date, values]) => {
-      const avgWeight = values.weight.reduce((a, b) => a + b, 0) / values.weight.length
-      const avgBf = values.body_fat.length > 0
-        ? values.body_fat.reduce((a, b) => a + b, 0) / values.body_fat.length
-        : null
-
-      let avgFfmi = null
+    // One row per date — values are already daily averages
+    const averaged: DailyAverage[] = sorted.map((m) => {
+      let ffmi = null
       const h = profile?.height_inches
-      if (avgBf !== null && h) {
-        const kg = avgWeight / 2.20462
-        const leanKg = kg * (1 - avgBf / 100)
-        avgFfmi = parseFloat((leanKg / Math.pow(h * 0.0254, 2)).toFixed(2))
+      if (m.body_fat !== null && h) {
+        const kg = m.weight / 2.20462
+        const leanKg = kg * (1 - m.body_fat / 100)
+        ffmi = parseFloat((leanKg / Math.pow(h * 0.0254, 2)).toFixed(2))
       }
 
       return {
-        date,
-        weight: parseFloat(avgWeight.toFixed(1)),
-        body_fat: avgBf ? parseFloat(avgBf.toFixed(1)) : null,
-        ffmi: avgFfmi,
-        count: values.weight.length,
+        date: m.date,
+        weight: m.weight,
+        body_fat: m.body_fat,
+        ffmi,
+        count: m.log_count ?? 1,
       }
     })
-
-    averaged.sort((a, b) => a.date.localeCompare(b.date))
 
     // Time period filtering
     if (period === 'all') {

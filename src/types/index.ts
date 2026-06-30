@@ -3,9 +3,10 @@ export interface Measurement {
   user_id: string
   date: string
   logged_at?: string | null
-  withings_grpid?: number | null
   weight: number
   body_fat: number | null
+  log_count?: number
+  body_fat_log_count?: number
   height_inches: number | null
   gender: 'male' | 'female' | null
   created_at: string
