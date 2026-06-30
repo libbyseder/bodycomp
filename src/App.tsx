@@ -1,23 +1,7 @@
-import { useState, useEffect } from 'react'
-import { supabase } from './lib/supabase'
-import { AuthProvider, useAuth } from './contexts/AuthContext'
-import AuthModal from './components/AuthModal'
-import QuickLogModal from './components/QuickLogModal'
-import ProfileModal from './components/ProfileModal'
-import DashboardWidgets from './components/DashboardWidgets'
-import TrendsChart from './components/TrendsChart'
-import ImportCSV from './components/ImportCSV'
-import MeasurementsTable from './components/MeasurementsTable'
-import { useMeasurements } from './hooks/useMeasurements'
-import { useProfile } from './hooks/useProfile'
-import toast from 'react-hot-toast'
-import { LogOut, Plus, RefreshCw } from 'lucide-react'
-
 function Dashboard() {
   const { user, signOut } = useAuth()
   const { measurements, deleteMeasurement, refetch } = useMeasurements()
-  const { profile } = useProfile()
-
+  const { profile, refetchProfile } = useProfile()   // ← Updated
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showQuickLog, setShowQuickLog] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
@@ -25,16 +9,13 @@ function Dashboard() {
   // ===================== WITHINGS INTEGRATION =====================
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-
     if (params.get('withings_success') === 'true') {
       const access_token = params.get('access_token')
       const refresh_token = params.get('refresh_token')
       const withings_user_id = params.get('withings_user_id')
-
       if (access_token && refresh_token && withings_user_id) {
         saveWithingsTokens(access_token, refresh_token, withings_user_id)
       }
-
       window.history.replaceState({}, document.title, window.location.pathname)
     }
   }, [])
@@ -46,12 +27,10 @@ function Dashboard() {
   ) => {
     try {
       const { data: { session } } = await supabase.auth.getSession()
-
       if (!session) {
         alert("Please log in to connect Withings")
         return
       }
-
       const response = await fetch('/api/withings/save-tokens', {
         method: 'POST',
         headers: {
@@ -64,9 +43,7 @@ function Dashboard() {
           withings_user_id,
         }),
       })
-
       const result = await response.json()
-
       if (result.success) {
         alert("Withings connected successfully!")
       } else {
@@ -86,7 +63,6 @@ function Dashboard() {
         alert("Please log in first")
         return
       }
-
       const res = await fetch('/api/withings/sync', {
         method: 'POST',
         headers: {
@@ -94,9 +70,7 @@ function Dashboard() {
           Authorization: `Bearer ${session.access_token}`,
         },
       })
-
       const result = await res.json()
-
       if (result.success) {
         alert(result.message || "Sync completed!")
         await refetch()
@@ -114,15 +88,12 @@ function Dashboard() {
     if (!confirm("Are you sure you want to delete ALL your measurements? This cannot be undone.")) {
       return
     }
-
     try {
       const { error } = await supabase
         .from('measurements')
         .delete()
         .eq('user_id', user?.id)
-
       if (error) throw error
-
       toast.success("All measurements deleted")
       await refetch()
     } catch (err) {
@@ -165,28 +136,24 @@ function Dashboard() {
 
           <div className="flex items-center gap-x-3">
             <ImportCSV refetch={refetch} />
-
             <button
               onClick={() => window.location.href = '/api/withings/auth'}
               className="flex items-center gap-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-2xl text-sm transition-colors"
             >
               Connect Withings
             </button>
-
             <button
               onClick={syncWithings}
               className="flex items-center gap-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-2xl text-sm transition-colors"
             >
               Sync Now
             </button>
-
             <button
               onClick={() => setShowProfile(true)}
               className="flex items-center gap-x-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm transition-colors"
             >
               Profile
             </button>
-
             <button
               onClick={signOut}
               className="flex items-center gap-x-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm transition-colors"
@@ -242,17 +209,13 @@ function Dashboard() {
       </div>
 
       <QuickLogModal isOpen={showQuickLog} onClose={() => setShowQuickLog(false)} refetch={refetch} />
-      <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} />
+      
+      {/* Updated ProfileModal with onSave */}
+      <ProfileModal 
+        isOpen={showProfile} 
+        onClose={() => setShowProfile(false)} 
+        onSave={refetchProfile} 
+      />
     </div>
   )
 }
-
-function App() {
-  return (
-    <AuthProvider>
-      <Dashboard />
-    </AuthProvider>
-  )
-}
-
-export default App
