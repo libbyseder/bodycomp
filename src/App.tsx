@@ -10,6 +10,7 @@ import DashboardWidgets from './components/DashboardWidgets'
 import TrendsChart from './components/TrendsChart'
 import ImportCSV from './components/ImportCSV'
 import DashboardHeader from './components/DashboardHeader'
+import InstallPrompt from './components/InstallPrompt'
 import MeasurementsTable from './components/MeasurementsTable'
 import { useMeasurements } from './hooks/useMeasurements'
 import { useProfile } from './hooks/useProfile'
@@ -211,6 +212,7 @@ function App() {
         }}
       />
       <Dashboard />
+      <InstallPrompt />
     </AuthProvider>
   )
 }
