@@ -37,17 +37,13 @@ export function useProfile() {
 
     if (!error) {
       setProfile(data)
-    } else if (error.code === 'PGRST116') {
-      // No profile row exists yet — this is normal for new users
-      setProfile(null)
-    } else {
+    } else if (error.code !== 'PGRST116') {
       console.error('Error fetching profile:', error)
     }
 
     setLoading(false)
   }, [user?.id])
 
-  // Expose this so ProfileModal can trigger an immediate refresh
   const refetchProfile = fetchProfile
 
   useEffect(() => {
@@ -57,6 +53,6 @@ export function useProfile() {
   return {
     profile,
     loading,
-    refetchProfile,     // ← Now available
+    refetchProfile,
   }
 }
