@@ -56,7 +56,8 @@ export default async function handler(req, res) {
     const errors = []
 
     for (const group of groups) {
-      const date = new Date(group.date * 1000).toISOString().split('T')[0]
+      const loggedAt = new Date(group.date * 1000).toISOString()
+      const date = loggedAt.split('T')[0]
       let weightKg = null
       let bodyFat = null
 
@@ -72,12 +73,15 @@ export default async function handler(req, res) {
         const { error } = await supabase.from('measurements').insert({
           user_id: user.id,
           date,
+          logged_at: loggedAt,
+          withings_grpid: group.grpid,
           weight: weightLbs,
           body_fat: bodyFat,
         })
 
         if (error) {
-          if (error.code !== '23505') { // 23505 = duplicate key (ignore)
+          // 23505 = already synced this Withings reading
+          if (error.code !== '23505') {
             errors.push({ date, message: error.message })
           }
         } else {

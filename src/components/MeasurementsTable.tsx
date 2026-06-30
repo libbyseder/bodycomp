@@ -24,6 +24,17 @@ export default function MeasurementsTable({ measurements, onDelete, profile }: M
   const startIndex = (currentPage - 1) * itemsPerPage
   const currentMeasurements = measurements.slice(startIndex, startIndex + itemsPerPage)
 
+  const formatDateCell = (m: Measurement) => {
+    if (m.logged_at && (logsPerDay[m.date] || 1) > 1) {
+      const time = new Date(m.logged_at).toLocaleTimeString([], {
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+      return `${m.date} ${time}`
+    }
+    return m.date
+  }
+
   return (
     <div>
       <div className="overflow-x-auto">
@@ -50,7 +61,7 @@ export default function MeasurementsTable({ measurements, onDelete, profile }: M
 
               return (
                 <tr key={m.id} className="border-b border-zinc-800 last:border-none">
-                  <td className="py-3 pr-4 text-white text-sm">{m.date}</td>
+                  <td className="py-3 pr-4 text-white text-sm">{formatDateCell(m)}</td>
                   <td className="py-3 pr-4 text-emerald-400 font-medium text-sm">
                     {logsPerDay[m.date] || 1}
                   </td>

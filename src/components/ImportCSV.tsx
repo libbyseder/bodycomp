@@ -31,6 +31,7 @@ export default function ImportCSV({ refetch }: ImportCSVProps) {
 
           let imported = 0
           const errors: string[] = []
+          const rowsPerDay: Record<string, number> = {}
 
           for (const row of results.data as any[]) {
             const date = row.date || row.Date || row.DATE
@@ -39,42 +40,48 @@ export default function ImportCSV({ refetch }: ImportCSVProps) {
             const csvBodyFat = rawBodyFat !== undefined && rawBodyFat !== "" && rawBodyFat !== null
               ? parseFloat(rawBodyFat)
               : null
+            const rawTime = row.time || row.Time || row.TIME
 
             if (!date || isNaN(weight)) {
               errors.push(`Skipped row with missing/invalid data: ${JSON.stringify(row)}`)
               continue
             }
 
-            // Check if a record already exists for this date
-            const { data: existing } = await supabase
-              .from('measurements')
-              .select('body_fat')
-              .eq('user_id', user.id)
-              .eq('date', date.trim())
-              .single()
+            const dateKey = date.trim()
+            const dayIndex = rowsPerDay[dateKey] || 0
+            rowsPerDay[dateKey] = dayIndex + 1
 
-            // Smart merge: preserve existing body_fat if CSV doesn't have one
-            let finalBodyFat = csvBodyFat
-            if (existing && existing.body_fat !== null && csvBodyFat === null) {
-              finalBodyFat = existing.body_fat
+            // Support optional time column; offset same-day rows by 1 hour each
+            let loggedAt: string
+            if (rawTime) {
+              loggedAt = new Date(`${dateKey}T${rawTime}`).toISOString()
+            } else {
+              const base = new Date(`${dateKey}T08:00:00`)
+              base.setHours(base.getHours() + dayIndex)
+              loggedAt = base.toISOString()
             }
 
-            const upsertData: any = {
+            const insertData: {
+              user_id: string
+              date: string
+              logged_at: string
+              weight: number
+              body_fat?: number
+            } = {
               user_id: user.id,
-              date: date.trim(),
+              date: dateKey,
+              logged_at: loggedAt,
               weight,
             }
 
-            if (finalBodyFat !== null) {
-              upsertData.body_fat = finalBodyFat
+            if (csvBodyFat !== null) {
+              insertData.body_fat = csvBodyFat
             }
 
-            const { error } = await supabase.from('measurements').upsert(upsertData, {
-              onConflict: 'user_id,date'
-            })
+            const { error } = await supabase.from('measurements').insert(insertData)
 
             if (error) {
-              errors.push(`Error on ${date}: ${error.message}`)
+              errors.push(`Error on ${dateKey}: ${error.message}`)
             } else {
               imported++
             }

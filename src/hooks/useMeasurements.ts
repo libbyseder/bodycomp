@@ -6,6 +6,8 @@ export interface Measurement {
   id: string
   user_id: string
   date: string
+  logged_at?: string | null
+  withings_grpid?: number | null
   weight: number
   body_fat: number | null
   height_inches: number | null
@@ -26,6 +28,7 @@ export function useMeasurements() {
       .from('measurements')
       .select('*')
       .eq('user_id', user.id)
+      .order('logged_at', { ascending: false, nullsFirst: false })
       .order('date', { ascending: false })
 
     if (!error && data) {
@@ -46,6 +49,7 @@ export function useMeasurements() {
       .insert({
         user_id: user.id,
         date,
+        logged_at: new Date().toISOString(),
         weight,
         body_fat,
       })

@@ -2,6 +2,8 @@ export interface Measurement {
   id: string
   user_id: string
   date: string
+  logged_at?: string | null
+  withings_grpid?: number | null
   weight: number
   body_fat: number | null
   height_inches: number | null

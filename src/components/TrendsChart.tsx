@@ -64,7 +64,14 @@ export default function TrendsChart({ measurements, profile }: TrendsChartProps)
     ffmiGoal: true,
   })
 
-  const sorted = useMemo(() => [...measurements].sort((a, b) => a.date.localeCompare(b.date)), [measurements])
+  const sorted = useMemo(
+    () => [...measurements].sort((a, b) => {
+      const aTime = a.logged_at || a.date
+      const bTime = b.logged_at || b.date
+      return aTime.localeCompare(bTime)
+    }),
+    [measurements]
+  )
 
   const { data, label } = useMemo(() => {
     if (sorted.length === 0) return { data: [] as DailyAverage[], label: '' }

@@ -45,38 +45,26 @@ export default function QuickLogModal({ isOpen, onClose, refetch }: QuickLogModa
 
       const parsedWeight = parseFloat(weight)
       const parsedBodyFat = bodyFat ? parseFloat(bodyFat) : null
+      const loggedAt = new Date().toISOString()
 
-      const row: { user_id: string; date: string; weight: number; body_fat?: number } = {
+      const row: {
+        user_id: string
+        date: string
+        logged_at: string
+        weight: number
+        body_fat?: number
+      } = {
         user_id: user.id,
         date,
+        logged_at: loggedAt,
         weight: parsedWeight,
       }
 
       if (parsedBodyFat !== null) {
         row.body_fat = parsedBodyFat
-      } else {
-        // Preserve existing body_fat when updating a date that already has a log
-        const { data: existing } = await supabase
-          .from('measurements')
-          .select('body_fat')
-          .eq('user_id', user.id)
-          .eq('date', date)
-          .maybeSingle()
-
-        if (existing?.body_fat != null) {
-          row.body_fat = existing.body_fat
-        }
       }
 
-      // Try insert first; fall back to upsert if this date already exists
-      let { error } = await supabase.from('measurements').insert(row)
-
-      if (error?.code === '23505') {
-        const upsertResult = await supabase
-          .from('measurements')
-          .upsert(row, { onConflict: 'user_id,date' })
-        error = upsertResult.error
-      }
+      const { error } = await supabase.from('measurements').insert(row)
 
       if (error) {
         toast.error(`Failed to save: ${error.message}`)
