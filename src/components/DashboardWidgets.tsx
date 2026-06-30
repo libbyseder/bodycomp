@@ -25,7 +25,7 @@ export default function DashboardWidgets({ measurements }: DashboardWidgetsProps
 
   // Support both old and new field names
   const weightGoal = profile?.target_weight
-  const bfGoal = profile?.target_body_fat ?? profile?.target_bf
+  const bfGoal = (profile as any)?.target_body_fat ?? (profile as any)?.target_bf
   const ffmiGoal = profile?.target_ffmi
 
   // Fixed progress calculations
