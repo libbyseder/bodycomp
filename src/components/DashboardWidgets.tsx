@@ -15,43 +15,52 @@ export default function DashboardWidgets({ measurements }: DashboardWidgetsProps
   const latest = measurements[0]
   const currentWeight = latest.weight
   const currentBf = latest.body_fat ?? 0
+
   const currentLeanMass = latest.body_fat
     ? parseFloat((latest.weight * (1 - latest.body_fat / 100)).toFixed(1))
     : null
 
-  // Calculate current FFMI using profile height as fallback
+  // Calculate current FFMI
   const heightForCalc = latest.height_inches ?? profile?.height_inches ?? null
   const currentFfmi = heightForCalc && latest.body_fat
-    ? parseFloat(((latest.weight / 2.20462) * (1 - latest.body_fat / 100) / Math.pow(heightForCalc * 0.0254, 2)).toFixed(2))
+    ? parseFloat(
+        ((latest.weight / 2.20462) * (1 - latest.body_fat / 100) / 
+         Math.pow(heightForCalc * 0.0254, 2)).toFixed(2)
+      )
     : null
 
-  // === Goals from Profile (fixed field name) ===
+  // Goals from Profile
   const weightGoal = profile?.target_weight
-  const bfGoal = profile?.target_body_fat        // ← Fixed
+  const bfGoal = profile?.target_body_fat
   const ffmiGoal = profile?.target_ffmi
 
-  // === Proper Progress Calculations ===
-  // Weight progress (assumes goal is lower = fat loss)
+  // === Weight Progress (lower is better) ===
   let weightProgress = 0
-  if (weightGoal) {
+  if (weightGoal && currentWeight > 0) {
     if (currentWeight <= weightGoal) {
       weightProgress = 100
     } else {
-      weightProgress = Math.max(0, Math.min(100, 100 - ((currentWeight - weightGoal) / currentWeight) * 100))
+      weightProgress = Math.max(
+        0,
+        Math.min(100, 100 - ((currentWeight - weightGoal) / currentWeight) * 100)
+      )
     }
   }
 
-  // Body Fat progress (lower is better)
+  // === Body Fat Progress (lower is better) ===
   let bfProgress = 0
-  if (bfGoal) {
+  if (bfGoal && currentBf > 0) {
     if (currentBf <= bfGoal) {
       bfProgress = 100
     } else {
-      bfProgress = Math.max(0, Math.min(100, 100 - ((currentBf - bfGoal) / currentBf) * 100))
+      bfProgress = Math.max(
+        0,
+        Math.min(100, 100 - ((currentBf - bfGoal) / currentBf) * 100)
+      )
     }
   }
 
-  // FFMI progress (higher is better)
+  // === FFMI Progress (higher is better) ===
   let ffmiProgress = 0
   if (ffmiGoal && currentFfmi) {
     if (currentFfmi >= ffmiGoal) {
