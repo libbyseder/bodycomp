@@ -63,7 +63,7 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
     const { error } = await supabase
       .from('profiles')
       .upsert({
-        user_id: user.id,
+        id: user.id,
         name: formData.name,
         height_inches: formData.height_inches,
         gender: formData.gender,
