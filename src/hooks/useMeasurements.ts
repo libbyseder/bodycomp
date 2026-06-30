@@ -41,7 +41,7 @@ export function useMeasurements() {
   ) => {
     if (!user) return { error: 'No user' }
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('measurements')
       .insert({
         user_id: user.id,
@@ -49,13 +49,13 @@ export function useMeasurements() {
         weight,
         body_fat,
       })
-      .select()
-      .single()
 
-    if (!error) {
-      await fetchMeasurements()
+    if (error) {
+      return { error }
     }
-    return { data, error }
+
+    await fetchMeasurements()
+    return { error: null }
   }
 
   const deleteMeasurement = async (id: string) => {

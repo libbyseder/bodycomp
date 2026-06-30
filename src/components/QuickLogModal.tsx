@@ -1,26 +1,37 @@
-import { useState } from 'react'
-import { useMeasurements } from '../hooks/useMeasurements'
+import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface QuickLogModalProps {
   isOpen: boolean
   onClose: () => void
-  refetch?: () => Promise<void>
+  addMeasurement: (
+    date: string,
+    weight: number,
+    body_fat: number | null
+  ) => Promise<{ error: unknown }>
+  refetch?: () => void | Promise<void>
 }
 
-export default function QuickLogModal({ isOpen, onClose, refetch }: QuickLogModalProps) {
-  const { addMeasurement } = useMeasurements()
+export default function QuickLogModal({ isOpen, onClose, addMeasurement, refetch }: QuickLogModalProps) {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [weight, setWeight] = useState('')
   const [bodyFat, setBodyFat] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  useEffect(() => {
+    if (isOpen) {
+      setDate(new Date().toISOString().split('T')[0])
+      setWeight('')
+      setBodyFat('')
+    }
+  }, [isOpen])
+
   if (!isOpen) return null
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!weight) {
       toast.error('Weight is required')
       return
@@ -28,29 +39,38 @@ export default function QuickLogModal({ isOpen, onClose, refetch }: QuickLogModa
 
     setIsSubmitting(true)
 
-    const { error } = await addMeasurement(
-      date,
-      parseFloat(weight),
-      bodyFat ? parseFloat(bodyFat) : null
-    )
+    try {
+      const { error } = await addMeasurement(
+        date,
+        parseFloat(weight),
+        bodyFat ? parseFloat(bodyFat) : null
+      )
 
-    setIsSubmitting(false)
-
-    if (error) {
-      toast.error('Failed to save measurement')
-      console.error(error)
-    } else {
-      toast.success('Measurement saved!')
-      
-      // Auto-refresh the main table
-      if (refetch) {
-        await refetch()
+      if (error) {
+        toast.error('Failed to save measurement')
+        console.error(error)
+        return
       }
-      
-      // Reset form
+
+      toast.success('Measurement saved!')
       setWeight('')
       setBodyFat('')
+
+      // Close immediately — don't wait for refetch
       onClose()
+
+      // Refresh the dashboard in the background
+      if (refetch) {
+        const result = refetch()
+        if (result && typeof result.then === 'function') {
+          result.catch((err) => console.error('refetch error:', err))
+        }
+      }
+    } catch (err) {
+      toast.error('Failed to save measurement')
+      console.error(err)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
