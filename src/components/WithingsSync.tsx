@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { RefreshCw, ChevronDown } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { apiUrl } from '../lib/apiBase'
 
 interface WithingsSyncProps {
   refetch: () => Promise<void>
@@ -37,7 +38,7 @@ export default function WithingsSync({ refetch, fullWidth = false }: WithingsSyn
         return
       }
 
-      const res = await fetch('/api/withings/sync', {
+      const res = await fetch(apiUrl('/api/withings/sync'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

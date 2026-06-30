@@ -1,0 +1,50 @@
+RecompTrack iOS App Setup (Capacitor)
+=====================================
+
+Prerequisites (Mac required for final build):
+- macOS with Xcode 15+
+- Apple Developer account (for device/TestFlight/App Store)
+- Node.js 20+
+
+1. Install dependencies
+   npm install
+
+2. Copy environment variables
+   cp .env.local.example .env.local
+   Fill in VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
+   VITE_API_BASE_URL should be https://bodycomp-goals.vercel.app
+
+3. Build the web app
+   npm run build
+
+4. Add the iOS platform (first time only)
+   npm run cap:add:ios
+
+5. Sync web build into the native project
+   npm run cap:sync
+   (or npm run build:ios to build + sync in one step)
+
+6. Open in Xcode
+   npm run cap:ios
+
+7. In Xcode
+   - Select your Team under Signing & Capabilities
+   - Set Bundle Identifier if needed (default: com.recomptrack.app)
+   - Choose a simulator or connected iPhone
+   - Press Run (Cmd+R)
+
+Withings OAuth on iOS:
+- Tap "Connect Withings" — opens Safari sheet
+- After login, redirects back to the app via recomptrack:// deep link
+- Requires the updated api/withings/auth.js and callback.js deployed on Vercel
+
+Deploy API changes before testing Withings on device:
+   git push origin main
+
+TestFlight / App Store:
+- Archive in Xcode (Product > Archive)
+- Distribute via App Store Connect
+
+Notes:
+- Windows can run steps 1-3 only. Steps 4-7 require a Mac.
+- Re-run npm run build:ios after every web code change.

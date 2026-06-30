@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { apiUrl } from '../lib/apiBase'
 import { useAuth } from '../contexts/AuthContext'
 
 export function useWithingsConnection() {
@@ -23,7 +24,7 @@ export function useWithingsConnection() {
         return
       }
 
-      const response = await fetch('/api/withings/status', {
+      const response = await fetch(apiUrl('/api/withings/status'), {
         headers: { Authorization: `Bearer ${session.access_token}` },
       })
 

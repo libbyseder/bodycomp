@@ -5,6 +5,13 @@ node_modules/
 dist/
 dist-ssr/
 
+# Capacitor native build artifacts
+ios/App/Pods/
+ios/App/build/
+ios/DerivedData/
+android/.gradle/
+android/app/build/
+
 # Environment variables
 .env
 .env.local

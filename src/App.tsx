@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from './lib/supabase'
+import { apiUrl } from './lib/apiBase'
+import { registerWithingsDeepLinkHandler } from './lib/withingsOAuth'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import AuthModal from './components/AuthModal'
 import QuickLogModal from './components/QuickLogModal'
@@ -12,7 +14,7 @@ import MeasurementsTable from './components/MeasurementsTable'
 import { useMeasurements } from './hooks/useMeasurements'
 import { useProfile } from './hooks/useProfile'
 import { useWithingsConnection } from './hooks/useWithingsConnection'
-import toast from 'react-hot-toast'
+import toast, { Toaster } from 'react-hot-toast'
 import { Plus, RefreshCw } from 'lucide-react'
 
 function Dashboard() {
@@ -25,21 +27,7 @@ function Dashboard() {
   const [showQuickLog, setShowQuickLog] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
 
-  // ===================== WITHINGS INTEGRATION =====================
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('withings_success') === 'true') {
-      const access_token = params.get('access_token')
-      const refresh_token = params.get('refresh_token')
-      const withings_user_id = params.get('withings_user_id')
-      if (access_token && refresh_token && withings_user_id) {
-        saveWithingsTokens(access_token, refresh_token, withings_user_id)
-      }
-      window.history.replaceState({}, document.title, window.location.pathname)
-    }
-  }, [])
-
-  const saveWithingsTokens = async (
+  const saveWithingsTokens = useCallback(async (
     access_token: string,
     refresh_token: string,
     withings_user_id: string
@@ -47,10 +35,10 @@ function Dashboard() {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
-        alert("Please log in to connect Withings")
+        toast.error('Please log in to connect Withings')
         return
       }
-      const response = await fetch('/api/withings/save-tokens', {
+      const response = await fetch(apiUrl('/api/withings/save-tokens'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -64,19 +52,36 @@ function Dashboard() {
       })
       const result = await response.json()
       if (result.success) {
-        alert("Withings connected successfully!")
+        toast.success('Withings connected successfully!')
         await refetchWithings()
       } else {
-        alert("Failed to save Withings connection")
+        toast.error('Failed to save Withings connection')
         console.error(result)
       }
     } catch (error) {
-      console.error("Error saving Withings tokens:", error)
-      alert("Something went wrong while connecting Withings")
+      console.error('Error saving Withings tokens:', error)
+      toast.error('Something went wrong while connecting Withings')
     }
-  }
+  }, [refetchWithings])
 
-  // ===================== END WITHINGS =====================
+  // Web OAuth return (browser redirect with query params)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('withings_success') === 'true') {
+      const access_token = params.get('access_token')
+      const refresh_token = params.get('refresh_token')
+      const withings_user_id = params.get('withings_user_id')
+      if (access_token && refresh_token && withings_user_id) {
+        void saveWithingsTokens(access_token, refresh_token, withings_user_id)
+      }
+      window.history.replaceState({}, document.title, window.location.pathname)
+    }
+  }, [saveWithingsTokens])
+
+  // iOS OAuth return (custom URL scheme deep link)
+  useEffect(() => {
+    return registerWithingsDeepLinkHandler(saveWithingsTokens)
+  }, [saveWithingsTokens])
 
   const handleDeleteAll = async () => {
     if (!confirm("Are you sure you want to delete ALL your measurements? This cannot be undone.")) {
@@ -88,7 +93,7 @@ function Dashboard() {
         toast.error("Please log in first")
         return
       }
-      const response = await fetch('/api/delete-all', {
+      const response = await fetch(apiUrl('/api/delete-all'), {
         method: 'POST',
         headers: { Authorization: `Bearer ${session.access_token}` },
       })
@@ -195,6 +200,16 @@ function Dashboard() {
 function App() {
   return (
     <AuthProvider>
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          style: {
+            background: '#27272a',
+            color: '#fafafa',
+            border: '1px solid #3f3f46',
+          },
+        }}
+      />
       <Dashboard />
     </AuthProvider>
   )

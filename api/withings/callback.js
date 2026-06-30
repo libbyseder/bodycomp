@@ -1,8 +1,12 @@
 export default async function handler(req, res) {
-  const { code } = req.query
+  const { code, state } = req.query
+  const isApp = state === 'recomptrack_app'
 
   if (!code) {
-    return res.redirect('/?withings_error=no_code')
+    const target = isApp
+      ? 'recomptrack://withings-callback?withings_error=no_code'
+      : '/?withings_error=no_code'
+    return res.redirect(target)
   }
 
   const clientId = process.env.WITHINGS_CLIENT_ID
@@ -26,12 +30,14 @@ export default async function handler(req, res) {
     const tokenData = await tokenResponse.json()
 
     if (tokenData.status !== 0) {
-      return res.redirect('/?withings_error=token_failed')
+      const target = isApp
+        ? 'recomptrack://withings-callback?withings_error=token_failed'
+        : '/?withings_error=token_failed'
+      return res.redirect(target)
     }
 
     const { access_token, refresh_token, userid } = tokenData.body
 
-    // Redirect to dashboard with tokens in URL (we'll handle saving on the frontend)
     const params = new URLSearchParams({
       withings_success: 'true',
       access_token,
@@ -39,8 +45,15 @@ export default async function handler(req, res) {
       withings_user_id: userid,
     })
 
-    return res.redirect(`/?${params.toString()}`)
+    const target = isApp
+      ? `recomptrack://withings-callback?${params.toString()}`
+      : `/?${params.toString()}`
+
+    return res.redirect(target)
   } catch (error) {
-    return res.redirect('/?withings_error=server_error')
+    const target = isApp
+      ? 'recomptrack://withings-callback?withings_error=server_error'
+      : '/?withings_error=server_error'
+    return res.redirect(target)
   }
 }

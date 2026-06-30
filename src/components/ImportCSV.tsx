@@ -5,6 +5,7 @@ import { parseCsvDate, parseCsvWeight, cleanCsvCell } from '../lib/parseCsvDate'
 import { mergeAggregates, readingToAggregate, type DailyAggregate } from '../lib/mergeMeasurement'
 import { Upload } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { apiUrl } from '../lib/apiBase'
 
 interface ImportCSVProps {
   refetch: () => Promise<void>
@@ -132,7 +133,7 @@ export default function ImportCSV({ refetch }: ImportCSVProps) {
             // Reset Withings dedup so Sync Now can merge on top of CSV data
             const { data: { session } } = await supabase.auth.getSession()
             if (session) {
-              await fetch('/api/reset-withings-sync', {
+              await fetch(apiUrl('/api/reset-withings-sync'), {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${session.access_token}` },
               })
