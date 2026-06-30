@@ -82,16 +82,17 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
 
     toast.success('Profile updated')
 
-    // Close modal first (this is the key fix)
+    // Close modal first
     onClose()
 
-    // Then refresh profile data in background
-if (onSave) {
-  const result = onSave()
-  if (result && typeof result.then === 'function') {
-    result.catch((e: any) => console.error('refetchProfile error:', e))
+    // Then refresh profile in background
+    if (onSave) {
+      const result = onSave()
+      if (result && typeof result.then === 'function') {
+        result.catch((e: any) => console.error('refetchProfile error:', e))
+      }
+    }
   }
-}
 
   const getFfmiCategories = () => {
     const gender = formData.gender?.toLowerCase()
