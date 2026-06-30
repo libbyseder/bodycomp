@@ -1,5 +1,10 @@
 {
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" }
-  ]
+  ],
+  "functions": {
+    "api/withings/sync.js": {
+      "maxDuration": 60
+    }
+  }
 }

@@ -67,6 +67,61 @@ function parseBody(req) {
   }
 }
 
+function parseGroup(group) {
+  let weightKg = null
+  let bodyFat = null
+
+  for (const m of group.measures || []) {
+    const realValue = m.value * Math.pow(10, m.unit)
+    if (m.type === 1) weightKg = realValue
+    if (m.type === 6) bodyFat = realValue
+  }
+
+  return {
+    grpid: group.grpid,
+    date: new Date(group.date * 1000).toISOString().split('T')[0],
+    loggedAt: new Date(group.date * 1000).toISOString(),
+    weightKg,
+    bodyFat,
+    hasWeight: weightKg != null,
+  }
+}
+
+async function fetchAllMeasureGroups(accessToken, startDate) {
+  const allGroups = []
+  let offset = 0
+
+  for (let page = 0; page < 50; page++) {
+    const params = new URLSearchParams({
+      action: 'getmeas',
+      access_token: accessToken,
+      meastype: '1,6',
+      category: '1',
+      startdate: String(startDate),
+    })
+    if (offset > 0) params.set('offset', String(offset))
+
+    const response = await fetch('https://wbsapi.withings.net/measure', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params,
+    })
+
+    const data = await response.json()
+    if (data.status !== 0) {
+      throw new Error(data.error || `Withings API status ${data.status}`)
+    }
+
+    const grps = data.body?.measuregrps || []
+    allGroups.push(...grps)
+
+    if (data.body?.more !== 1) break
+    offset = data.body?.offset ?? 0
+  }
+
+  return allGroups
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
@@ -99,77 +154,64 @@ export default async function handler(req, res) {
       .eq('user_id', user.id)
   }
 
-  const { access_token } = tokenData
-
   try {
-    const startDate = Math.floor(Date.now() / 1000) - (2 * 365 * 24 * 60 * 60)
+    // 10 years of history
+    const startDate = Math.floor(Date.now() / 1000) - (10 * 365 * 24 * 60 * 60)
+    const allGroups = await fetchAllMeasureGroups(tokenData.access_token, startDate)
 
-    const response = await fetch('https://wbsapi.withings.net/measure', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        action: 'getmeas',
-        access_token,
-        meastype: '1,6',
-        category: '1',
-        startdate: startDate,
-      }),
-    })
-
-    const data = await response.json()
-
-    if (data.status !== 0) {
-      return res.status(400).json({ error: 'Withings error', details: data })
+    // Load existing synced grpids once (not per-reading queries)
+    const syncedGrpids = new Set()
+    if (!force) {
+      const { data: synced } = await supabase
+        .from('withings_synced_grpids')
+        .select('grpid')
+        .eq('user_id', user.id)
+      for (const row of synced || []) {
+        syncedGrpids.add(row.grpid)
+      }
     }
 
-    const groups = data.body?.measuregrps || []
-    let newReadingsMerged = 0
+    // Load existing daily rows once
+    const { data: existingRows } = await supabase
+      .from('measurements')
+      .select('date, weight, body_fat, log_count, body_fat_log_count')
+      .eq('user_id', user.id)
+
+    const byDate = new Map()
+    const lastLoggedAt = new Map()
+
+    for (const row of existingRows || []) {
+      byDate.set(row.date, rowToAggregate(row))
+    }
+
     let skippedAlreadySynced = 0
     let skippedNoData = 0
     let skippedNoWeight = 0
-    const daysUpdated = new Set()
-    const errors = []
+    let newReadingsMerged = 0
+    const newGrpids = []
 
-    for (const group of groups) {
-      const loggedAt = new Date(group.date * 1000).toISOString()
-      const date = loggedAt.split('T')[0]
-      let weightKg = null
-      let bodyFat = null
+    // Process weight readings before body-fat-only on the same day
+    const parsed = allGroups.map(parseGroup)
+    parsed.sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date)
+      if (a.hasWeight !== b.hasWeight) return a.hasWeight ? -1 : 1
+      return 0
+    })
 
-      for (const m of group.measures) {
-        const realValue = m.value * Math.pow(10, m.unit)
-        if (m.type === 1) weightKg = realValue
-        if (m.type === 6) bodyFat = realValue
-      }
-
-      if (!weightKg && bodyFat == null) {
+    for (const reading of parsed) {
+      if (!reading.hasWeight && reading.bodyFat == null) {
         skippedNoData++
         continue
       }
 
-      if (!force) {
-        const { data: alreadySynced } = await supabase
-          .from('withings_synced_grpids')
-          .select('grpid')
-          .eq('user_id', user.id)
-          .eq('grpid', group.grpid)
-          .maybeSingle()
-
-        if (alreadySynced) {
-          skippedAlreadySynced++
-          continue
-        }
+      if (!force && syncedGrpids.has(reading.grpid)) {
+        skippedAlreadySynced++
+        continue
       }
 
-      const { data: existing } = await supabase
-        .from('measurements')
-        .select('weight, body_fat, log_count, body_fat_log_count')
-        .eq('user_id', user.id)
-        .eq('date', date)
-        .maybeSingle()
-
-      const weightLbs = weightKg
-        ? weightKg * 2.20462
+      const existing = byDate.get(reading.date)
+      const weightLbs = reading.weightKg
+        ? reading.weightKg * 2.20462
         : existing?.weight ?? null
 
       if (weightLbs == null) {
@@ -178,54 +220,68 @@ export default async function handler(req, res) {
       }
 
       const merged = mergeAggregates(
-        existing ? rowToAggregate(existing) : null,
-        readingToAggregate(weightLbs, bodyFat)
+        existing ?? null,
+        readingToAggregate(weightLbs, reading.bodyFat)
       )
 
-      const { error: upsertError } = await supabase.from('measurements').upsert(
-        {
-          user_id: user.id,
-          date,
-          weight: merged.weight,
-          body_fat: merged.body_fat,
-          log_count: merged.log_count,
-          body_fat_log_count: merged.body_fat_log_count,
-          logged_at: loggedAt,
-        },
-        { onConflict: 'user_id,date' }
-      )
-
-      if (upsertError) {
-        errors.push({ date, message: upsertError.message })
-        continue
-      }
-
-      const { error: trackError } = await supabase
-        .from('withings_synced_grpids')
-        .insert({ user_id: user.id, grpid: group.grpid })
-
-      if (trackError && trackError.code !== '23505') {
-        errors.push({ date, message: trackError.message })
-        continue
-      }
-
+      byDate.set(reading.date, merged)
+      lastLoggedAt.set(reading.date, reading.loggedAt)
+      newGrpids.push(reading.grpid)
+      syncedGrpids.add(reading.grpid)
       newReadingsMerged++
-      daysUpdated.add(date)
     }
+
+    // Batch upsert only days that received new Withings data this run
+    const toUpsert = []
+    for (const [date, agg] of byDate.entries()) {
+      if (!lastLoggedAt.has(date)) continue
+      toUpsert.push({
+        user_id: user.id,
+        date,
+        weight: agg.weight,
+        body_fat: agg.body_fat,
+        log_count: agg.log_count,
+        body_fat_log_count: agg.body_fat_log_count,
+        logged_at: lastLoggedAt.get(date),
+      })
+    }
+
+    const BATCH = 200
+    const errors = []
+    for (let i = 0; i < toUpsert.length; i += BATCH) {
+      const batch = toUpsert.slice(i, i + BATCH)
+      const { error } = await supabase
+        .from('measurements')
+        .upsert(batch, { onConflict: 'user_id,date' })
+      if (error) errors.push({ message: error.message })
+    }
+
+    // Batch insert grpids
+    for (let i = 0; i < newGrpids.length; i += BATCH) {
+      const batch = newGrpids.slice(i, i + BATCH).map((grpid) => ({
+        user_id: user.id,
+        grpid,
+      }))
+      await supabase.from('withings_synced_grpids').upsert(batch, {
+        onConflict: 'user_id,grpid',
+      })
+    }
+
+    const daysUpdated = lastLoggedAt.size
 
     return res.status(200).json({
       success: true,
-      found: groups.length,
+      found: allGroups.length,
       newReadingsMerged,
-      daysUpdated: daysUpdated.size,
+      daysUpdated,
       skippedAlreadySynced,
       skippedNoData,
       skippedNoWeight,
       force,
       errors: errors.slice(0, 5),
-      message: force
-        ? `Full re-sync: merged ${newReadingsMerged} Withings logs across ${daysUpdated.size} days.`
-        : `Merged ${newReadingsMerged} new Withings logs across ${daysUpdated.size} days.`,
+      message:
+        `Fetched ${allGroups.length} Withings readings. ` +
+        `Merged ${newReadingsMerged} logs across ${daysUpdated} day${daysUpdated === 1 ? '' : 's'}.`,
     })
   } catch (error) {
     console.error(error)
