@@ -1,8 +1,19 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-import type { Profile } from '../types'
 import { useAuth } from '../contexts/AuthContext'
-import toast from 'react-hot-toast'
+
+export interface Profile {
+  id?: string
+  user_id: string
+  name?: string | null
+  height_inches?: number | null
+  gender?: 'male' | 'female' | null
+  target_weight?: number | null
+  target_body_fat?: number | null
+  target_ffmi?: number | null
+  created_at?: string
+  updated_at?: string
+}
 
 export function useProfile() {
   const { user } = useAuth()
@@ -17,44 +28,27 @@ export function useProfile() {
     }
 
     setLoading(true)
+
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', user.id)
+      .eq('user_id', user.id)
       .single()
 
-    if (error && error.code !== 'PGRST116') {
-      // PGRST116 = no rows found (new user)
+    if (!error) {
+      setProfile(data)
+    } else if (error.code === 'PGRST116') {
+      // No profile row exists yet — this is normal for new users
+      setProfile(null)
+    } else {
       console.error('Error fetching profile:', error)
     }
 
-    setProfile(data || null)
     setLoading(false)
-  }, [user])
+  }, [user?.id])
 
-  const updateProfile = async (updates: Partial<Omit<Profile, 'id' | 'updated_at'>>) => {
-    if (!user) return { error: 'No user' }
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .upsert({
-        id: user.id,
-        ...updates,
-        updated_at: new Date().toISOString(),
-      })
-      .select()
-      .single()
-
-    if (error) {
-      toast.error('Failed to save profile')
-      console.error(error)
-      return { error }
-    }
-
-    setProfile(data)
-    toast.success('Profile saved!')
-    return { data }
-  }
+  // Expose this so ProfileModal can trigger an immediate refresh
+  const refetchProfile = fetchProfile
 
   useEffect(() => {
     fetchProfile()
@@ -63,7 +57,6 @@ export function useProfile() {
   return {
     profile,
     loading,
-    updateProfile,
-    refresh: fetchProfile,
+    refetchProfile,     // ← Now available
   }
 }
