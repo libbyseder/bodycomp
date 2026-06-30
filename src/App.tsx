@@ -1,7 +1,23 @@
+import { useState, useEffect } from 'react'
+import { supabase } from './lib/supabase'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
+import AuthModal from './components/AuthModal'
+import QuickLogModal from './components/QuickLogModal'
+import ProfileModal from './components/ProfileModal'
+import DashboardWidgets from './components/DashboardWidgets'
+import TrendsChart from './components/TrendsChart'
+import ImportCSV from './components/ImportCSV'
+import MeasurementsTable from './components/MeasurementsTable'
+import { useMeasurements } from './hooks/useMeasurements'
+import { useProfile } from './hooks/useProfile'
+import toast from 'react-hot-toast'
+import { LogOut, Plus, RefreshCw } from 'lucide-react'
+
 function Dashboard() {
   const { user, signOut } = useAuth()
   const { measurements, deleteMeasurement, refetch } = useMeasurements()
-  const { profile, refetchProfile } = useProfile()   // ← Updated
+  const { profile, refetchProfile } = useProfile()   // ← Updated with refetchProfile
+
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showQuickLog, setShowQuickLog] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
@@ -209,8 +225,6 @@ function Dashboard() {
       </div>
 
       <QuickLogModal isOpen={showQuickLog} onClose={() => setShowQuickLog(false)} refetch={refetch} />
-      
-      {/* Updated ProfileModal with onSave */}
       <ProfileModal 
         isOpen={showProfile} 
         onClose={() => setShowProfile(false)} 
@@ -219,3 +233,13 @@ function Dashboard() {
     </div>
   )
 }
+
+function App() {
+  return (
+    <AuthProvider>
+      <Dashboard />
+    </AuthProvider>
+  )
+}
+
+export default App
