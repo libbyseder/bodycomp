@@ -1,0 +1,62 @@
+RecompTrack Android App Setup (Capacitor)
+==========================================
+
+Unlike iOS, you can build Android on Windows.
+
+Prerequisites:
+- Node.js 20+
+- Android Studio (https://developer.android.com/studio)
+- JDK 17+ (bundled with Android Studio)
+
+1. Install dependencies
+   npm install
+
+2. Environment variables (.env.local)
+   VITE_SUPABASE_URL=...
+   VITE_SUPABASE_ANON_KEY=...
+   VITE_API_BASE_URL=https://bodycomp-goals.vercel.app
+
+3. Build the web app
+   npm run build
+
+4. Add Android platform (first time only)
+   npm run cap:add:android
+
+5. Withings deep link (first time only)
+   After step 4, edit android/app/src/main/AndroidManifest.xml.
+   Inside the MainActivity <activity> block, add:
+
+     <intent-filter>
+       <action android:name="android.intent.action.VIEW" />
+       <category android:name="android.intent.category.DEFAULT" />
+       <category android:name="android.intent.category.BROWSABLE" />
+       <data android:scheme="recomptrack" android:host="withings-callback" />
+     </intent-filter>
+
+6. Sync and open Android Studio
+   npm run build:android
+   npm run cap:android
+
+7. In Android Studio
+   - Wait for Gradle sync to finish
+   - Select a device (emulator or USB-connected phone with USB debugging on)
+   - Click Run (green play button)
+
+Install on your phone (without Play Store):
+- Enable Developer Options + USB debugging on the phone
+- Connect via USB, click Run in Android Studio
+- Or: Build > Build Bundle(s) / APK(s) > Build APK(s)
+  Then copy the APK to your phone and install
+
+Google Play Store (optional later):
+- One-time $25 Google Play developer fee
+- Build > Generate Signed Bundle / APK
+- Upload to Google Play Console
+
+After code changes:
+   npm run build:android
+   Then Run again from Android Studio
+
+Notes:
+- The app uses your live Vercel API (sync, Withings, delete-all).
+- Withings OAuth opens Chrome Custom Tab and returns via recomptrack:// deep link.

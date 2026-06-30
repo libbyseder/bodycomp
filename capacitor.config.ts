@@ -8,6 +8,15 @@ const config: CapacitorConfig = {
     contentInset: 'automatic',
     scheme: 'recomptrack',
   },
+  android: {
+    backgroundColor: '#09090b',
+    allowMixedContent: false,
+  },
+  plugins: {
+    App: {
+      urlScheme: 'recomptrack',
+    },
+  },
 }
 
 export default config

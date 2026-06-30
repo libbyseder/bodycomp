@@ -9,8 +9,11 @@
     "preview": "vite preview",
     "cap:sync": "npx cap sync",
     "cap:add:ios": "npx cap add ios",
+    "cap:add:android": "npx cap add android",
     "cap:ios": "npx cap open ios",
-    "build:ios": "npm run build && npx cap sync ios"
+    "cap:android": "npx cap open android",
+    "build:ios": "npm run build && npx cap sync ios",
+    "build:android": "npm run build && npx cap sync android"
   },
   "dependencies": {
     "@capacitor/app": "^7.0.1",
@@ -28,6 +31,7 @@
   "devDependencies": {
     "@capacitor/cli": "^7.0.1",
     "@capacitor/ios": "^7.0.1",
+    "@capacitor/android": "^7.0.1",
     "@types/papaparse": "^5.5.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",

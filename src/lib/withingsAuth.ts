@@ -8,7 +8,10 @@ export async function openWithingsAuth(): Promise<void> {
     : apiUrl('/api/withings/auth')
 
   if (Capacitor.isNativePlatform()) {
-    await Browser.open({ url, presentationStyle: 'popover' })
+    await Browser.open({
+      url,
+      ...(Capacitor.getPlatform() === 'ios' ? { presentationStyle: 'popover' as const } : {}),
+    })
     return
   }
 
