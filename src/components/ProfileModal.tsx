@@ -82,14 +82,13 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
 
     toast.success('Profile updated')
 
-    if (onSave) {
-      try {
-        await onSave()
-      } catch (e) {
-        console.error('refetchProfile error:', e)
-      }
-    }
+    // Close modal first (this is the key fix)
     onClose()
+
+    // Then refresh profile data in background
+    if (onSave) {
+      onSave().catch((e) => console.error('refetchProfile error:', e))
+    }
   }
 
   const getFfmiCategories = () => {
@@ -132,7 +131,6 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
 
         <h2 className="text-3xl font-semibold mb-8">Profile &amp; Goals</h2>
 
-        {/* Name */}
         <div className="mb-6">
           <label className="block text-sm text-zinc-400 mb-2">Name</label>
           <input
@@ -144,7 +142,6 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
           />
         </div>
 
-        {/* Height & Gender */}
         <div className="grid grid-cols-2 gap-4 mb-8">
           <div>
             <label className="block text-sm text-zinc-400 mb-2">Height (inches)</label>
@@ -170,13 +167,11 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
           </div>
         </div>
 
-        {/* Goals */}
         <div className="mb-2">
           <h3 className="text-lg font-medium mb-4">Goals</h3>
         </div>
 
         <div className="grid grid-cols-3 gap-4 mb-8">
-          {/* Target Weight */}
           <div>
             <label className="block text-sm text-zinc-400 mb-2">Target Weight (lbs)</label>
             <input
@@ -186,8 +181,6 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
               className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
             />
           </div>
-
-          {/* Target Body Fat % */}
           <div>
             <label className="block text-sm text-zinc-400 mb-2">Target Body Fat %</label>
             <input
@@ -198,8 +191,6 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
               className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
             />
           </div>
-
-          {/* Target FFMI with Tooltip */}
           <div className="relative">
             <label className="block text-sm text-zinc-400 mb-2 flex items-center gap-x-1">
               Target FFMI
@@ -220,7 +211,6 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
               className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
             />
 
-            {/* FFMI Tooltip */}
             {showFfmiTooltip && (
               <div className="absolute top-full mt-2 left-0 z-50 w-72 bg-zinc-800 border border-zinc-700 rounded-2xl p-4 text-sm shadow-xl">
                 <div className="font-medium mb-3 text-white">FFMI Categories</div>
@@ -242,7 +232,6 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
           </div>
         </div>
 
-        {/* Buttons */}
         <div className="flex gap-3">
           <button
             onClick={onClose}
