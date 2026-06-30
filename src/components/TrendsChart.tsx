@@ -186,7 +186,7 @@ export default function TrendsChart({ measurements, profile }: TrendsChartProps)
       visibility.bodyFat && { label: 'Body Fat %', data: bfData, borderColor: '#f59e0b', borderWidth: 3, tension: 0.3, spanGaps: true, yAxisID: 'y1' },
       visibility.ffmi && { label: 'FFMI', data: ffmiData, borderColor: '#3b82f6', borderWidth: 3, tension: 0.3, spanGaps: true, yAxisID: 'y2' },
       visibility.weightGoal && profile?.target_weight && { label: 'Weight Goal', data: Array(labels.length).fill(profile.target_weight), borderColor: '#10b981', borderDash: [5,5], borderWidth: 2, pointRadius: 0, yAxisID: 'y' },
-      visibility.bfGoal && profile?.target_bf && { label: 'BF% Goal', data: Array(labels.length).fill(profile.target_bf), borderColor: '#f59e0b', borderDash: [5,5], borderWidth: 2, pointRadius: 0, yAxisID: 'y1' },
+      visibility.bfGoal && profile?.target_body_fat && { label: 'BF% Goal', data: Array(labels.length).fill(profile.target_body_fat), borderColor: '#f59e0b', borderDash: [5,5], borderWidth: 2, pointRadius: 0, yAxisID: 'y1' },
       visibility.ffmiGoal && profile?.target_ffmi && { label: 'FFMI Goal', data: Array(labels.length).fill(profile.target_ffmi), borderColor: '#3b82f6', borderDash: [5,5], borderWidth: 2, pointRadius: 0, yAxisID: 'y2' },
     ].filter(Boolean) as any[],
   }
