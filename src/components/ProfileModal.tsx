@@ -21,6 +21,7 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
   const [showFfmiTooltip, setShowFfmiTooltip] = useState(false)
   const [loading, setLoading] = useState(false)
 
+  // Load current profile when modal opens
   useEffect(() => {
     if (isOpen) {
       const loadProfile = async () => {
@@ -80,7 +81,6 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
     }
 
     toast.success('Profile updated')
-    onClose()
 
     if (onSave) {
       try {
@@ -89,6 +89,7 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
         console.error('refetchProfile error:', e)
       }
     }
+    onClose()
   }
 
   const getFfmiCategories = () => {
@@ -131,6 +132,7 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
 
         <h2 className="text-3xl font-semibold mb-8">Profile &amp; Goals</h2>
 
+        {/* Name */}
         <div className="mb-6">
           <label className="block text-sm text-zinc-400 mb-2">Name</label>
           <input
@@ -142,6 +144,7 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
           />
         </div>
 
+        {/* Height & Gender */}
         <div className="grid grid-cols-2 gap-4 mb-8">
           <div>
             <label className="block text-sm text-zinc-400 mb-2">Height (inches)</label>
@@ -167,11 +170,13 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
           </div>
         </div>
 
+        {/* Goals */}
         <div className="mb-2">
           <h3 className="text-lg font-medium mb-4">Goals</h3>
         </div>
 
         <div className="grid grid-cols-3 gap-4 mb-8">
+          {/* Target Weight */}
           <div>
             <label className="block text-sm text-zinc-400 mb-2">Target Weight (lbs)</label>
             <input
@@ -181,6 +186,8 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
               className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
             />
           </div>
+
+          {/* Target Body Fat % */}
           <div>
             <label className="block text-sm text-zinc-400 mb-2">Target Body Fat %</label>
             <input
@@ -191,9 +198,19 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
               className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
             />
           </div>
+
+          {/* Target FFMI with Tooltip */}
           <div className="relative">
             <label className="block text-sm text-zinc-400 mb-2 flex items-center gap-x-1">
-              Target FFMI <Info size={14} className="text-emerald-400" />
+              Target FFMI
+              <button
+                type="button"
+                onMouseEnter={() => setShowFfmiTooltip(true)}
+                onMouseLeave={() => setShowFfmiTooltip(false)}
+                className="text-emerald-400 hover:text-emerald-300"
+              >
+                <Info size={14} />
+              </button>
             </label>
             <input
               type="number"
@@ -202,17 +219,41 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
               onChange={(e) => setFormData({ ...formData, target_ffmi: parseFloat(e.target.value) || 17.5 })}
               className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
             />
+
+            {/* FFMI Tooltip */}
+            {showFfmiTooltip && (
+              <div className="absolute top-full mt-2 left-0 z-50 w-72 bg-zinc-800 border border-zinc-700 rounded-2xl p-4 text-sm shadow-xl">
+                <div className="font-medium mb-3 text-white">FFMI Categories</div>
+                <div className="space-y-1.5 text-xs">
+                  {ffmiCategories.map((cat, index) => (
+                    <div key={index} className="flex justify-between">
+                      <span className={cat.color}>{cat.range}</span>
+                      <span className="text-zinc-400">{cat.label}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 pt-3 border-t border-zinc-700 text-[10px] text-zinc-500">
+                  {formData.gender
+                    ? `Showing categories for ${formData.gender}s`
+                    : 'Select gender to see specific ranges'}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
+        {/* Buttons */}
         <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-white font-medium">
+          <button
+            onClick={onClose}
+            className="flex-1 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-white font-medium transition-colors"
+          >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={loading}
-            className="flex-1 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium disabled:opacity-50"
+            className="flex-1 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors disabled:opacity-50"
           >
             {loading ? 'Saving...' : 'Save Changes'}
           </button>
