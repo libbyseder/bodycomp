@@ -54,6 +54,7 @@ export default function TrendsChart({ measurements, profile }: TrendsChartProps)
   const [period, setPeriod] = useState<TimePeriod>('month')
   const [offset, setOffset] = useState(0)
   const [showAdvanced, setShowAdvanced] = useState(false)
+
   const [visibility, setVisibility] = useState<VisibilitySettings>({
     weight: true,
     bodyFat: true,
@@ -67,40 +68,44 @@ export default function TrendsChart({ measurements, profile }: TrendsChartProps)
 
   const { data, label } = useMemo(() => {
     if (sorted.length === 0) return { data: [] as DailyAverage[], label: '' }
+
+    // Group and average by day
+    const grouped: Record<string, { weight: number[]; body_fat: number[] }> = {}
+
+    sorted.forEach(m => {
+      const dateOnly = new Date(m.date).toISOString().split('T')[0]
+      if (!grouped[dateOnly]) grouped[dateOnly] = { weight: [], body_fat: [] }
+      grouped[dateOnly].weight.push(m.weight)
+      if (m.body_fat !== null) grouped[dateOnly].body_fat.push(m.body_fat)
+    })
+
+    const averaged: DailyAverage[] = Object.entries(grouped).map(([date, values]) => {
+      const avgWeight = values.weight.reduce((a, b) => a + b, 0) / values.weight.length
+      const avgBf = values.body_fat.length > 0
+        ? values.body_fat.reduce((a, b) => a + b, 0) / values.body_fat.length
+        : null
+
+      let avgFfmi = null
+      const h = profile?.height_inches
+      if (avgBf !== null && h) {
+        const kg = avgWeight / 2.20462
+        const leanKg = kg * (1 - avgBf / 100)
+        avgFfmi = parseFloat((leanKg / Math.pow(h * 0.0254, 2)).toFixed(2))
+      }
+
+      return {
+        date,
+        weight: parseFloat(avgWeight.toFixed(1)),
+        body_fat: avgBf ? parseFloat(avgBf.toFixed(1)) : null,
+        ffmi: avgFfmi,
+        count: values.weight.length,
+      }
+    })
+
+    averaged.sort((a, b) => a.date.localeCompare(b.date))
+
+    // Time period filtering
     if (period === 'all') {
-      // For "All", we still average per day for consistency
-      const grouped: Record<string, { weight: number[]; body_fat: number[] }> = {}
-      sorted.forEach(m => {
-        const dateOnly = new Date(m.date).toISOString().split('T')[0]
-        if (!grouped[dateOnly]) grouped[dateOnly] = { weight: [], body_fat: [] }
-        grouped[dateOnly].weight.push(m.weight)
-        if (m.body_fat !== null) grouped[dateOnly].body_fat.push(m.body_fat)
-      })
-
-      const averaged: DailyAverage[] = Object.entries(grouped).map(([date, values]) => {
-        const avgWeight = values.weight.reduce((a, b) => a + b, 0) / values.weight.length
-        const avgBf = values.body_fat.length > 0 
-          ? values.body_fat.reduce((a, b) => a + b, 0) / values.body_fat.length 
-          : null
-
-        let avgFfmi = null
-        const h = profile?.height_inches
-        if (avgBf !== null && h) {
-          const kg = avgWeight / 2.20462
-          const leanKg = kg * (1 - avgBf / 100)
-          avgFfmi = parseFloat((leanKg / Math.pow(h * 0.0254, 2)).toFixed(2))
-        }
-
-        return {
-          date,
-          weight: parseFloat(avgWeight.toFixed(1)),
-          body_fat: avgBf ? parseFloat(avgBf.toFixed(1)) : null,
-          ffmi: avgFfmi,
-          count: values.weight.length,
-        }
-      })
-
-      averaged.sort((a, b) => a.date.localeCompare(b.date))
       return { data: averaged, label: 'All Time' }
     }
 
@@ -129,49 +134,15 @@ export default function TrendsChart({ measurements, profile }: TrendsChartProps)
 
     const endDate = new Date(now)
     endDate.setDate(endDate.getDate() - (windowSize * offset))
-
     const startDate = new Date(endDate)
     startDate.setDate(startDate.getDate() - windowSize)
 
-    const inRange = sorted.filter(m => {
-      const d = new Date(m.date)
-      return d >= startDate && d <= endDate
+    const filtered = averaged.filter(d => {
+      const dDate = new Date(d.date)
+      return dDate >= startDate && dDate <= endDate
     })
 
-    // Group and average by day
-    const grouped: Record<string, { weight: number[]; body_fat: number[] }> = {}
-    inRange.forEach(m => {
-      const dateOnly = new Date(m.date).toISOString().split('T')[0]
-      if (!grouped[dateOnly]) grouped[dateOnly] = { weight: [], body_fat: [] }
-      grouped[dateOnly].weight.push(m.weight)
-      if (m.body_fat !== null) grouped[dateOnly].body_fat.push(m.body_fat)
-    })
-
-    const averaged: DailyAverage[] = Object.entries(grouped).map(([date, values]) => {
-      const avgWeight = values.weight.reduce((a, b) => a + b, 0) / values.weight.length
-      const avgBf = values.body_fat.length > 0 
-        ? values.body_fat.reduce((a, b) => a + b, 0) / values.body_fat.length 
-        : null
-
-      let avgFfmi = null
-      const h = profile?.height_inches
-      if (avgBf !== null && h) {
-        const kg = avgWeight / 2.20462
-        const leanKg = kg * (1 - avgBf / 100)
-        avgFfmi = parseFloat((leanKg / Math.pow(h * 0.0254, 2)).toFixed(2))
-      }
-
-      return {
-        date,
-        weight: parseFloat(avgWeight.toFixed(1)),
-        body_fat: avgBf ? parseFloat(avgBf.toFixed(1)) : null,
-        ffmi: avgFfmi,
-        count: values.weight.length,
-      }
-    })
-
-    averaged.sort((a, b) => a.date.localeCompare(b.date))
-    return { data: averaged, label: lbl }
+    return { data: filtered, label: lbl }
   }, [sorted, period, offset, profile?.height_inches])
 
   const labels = data.map(d => d.date)
@@ -182,12 +153,61 @@ export default function TrendsChart({ measurements, profile }: TrendsChartProps)
   const chartData = {
     labels,
     datasets: [
-      visibility.weight && { label: 'Weight (lbs)', data: wData, borderColor: '#10b981', borderWidth: 3, tension: 0.3, spanGaps: true, yAxisID: 'y' },
-      visibility.bodyFat && { label: 'Body Fat %', data: bfData, borderColor: '#f59e0b', borderWidth: 3, tension: 0.3, spanGaps: true, yAxisID: 'y1' },
-      visibility.ffmi && { label: 'FFMI', data: ffmiData, borderColor: '#3b82f6', borderWidth: 3, tension: 0.3, spanGaps: true, yAxisID: 'y2' },
-      visibility.weightGoal && profile?.target_weight && { label: 'Weight Goal', data: Array(labels.length).fill(profile.target_weight), borderColor: '#10b981', borderDash: [5,5], borderWidth: 2, pointRadius: 0, yAxisID: 'y' },
-      visibility.bfGoal && profile?.target_body_fat && { label: 'BF% Goal', data: Array(labels.length).fill(profile.target_body_fat), borderColor: '#f59e0b', borderDash: [5,5], borderWidth: 2, pointRadius: 0, yAxisID: 'y1' },
-      visibility.ffmiGoal && profile?.target_ffmi && { label: 'FFMI Goal', data: Array(labels.length).fill(profile.target_ffmi), borderColor: '#3b82f6', borderDash: [5,5], borderWidth: 2, pointRadius: 0, yAxisID: 'y2' },
+      visibility.weight && {
+        label: 'Weight (lbs)',
+        data: wData,
+        borderColor: '#10b981',
+        borderWidth: 3,
+        tension: 0.3,
+        spanGaps: true,
+        yAxisID: 'y',
+      },
+      visibility.bodyFat && {
+        label: 'Body Fat %',
+        data: bfData,
+        borderColor: '#f59e0b',
+        borderWidth: 3,
+        tension: 0.3,
+        spanGaps: true,
+        yAxisID: 'y1',
+      },
+      visibility.ffmi && {
+        label: 'FFMI',
+        data: ffmiData,
+        borderColor: '#3b82f6',
+        borderWidth: 3,
+        tension: 0.3,
+        spanGaps: true,
+        yAxisID: 'y2',
+      },
+      // Goal Lines
+      visibility.weightGoal && profile?.target_weight != null && {
+        label: 'Weight Goal',
+        data: Array(labels.length).fill(profile.target_weight),
+        borderColor: '#10b981',
+        borderDash: [5, 5],
+        borderWidth: 2,
+        pointRadius: 0,
+        yAxisID: 'y',
+      },
+      visibility.bfGoal && profile?.target_body_fat != null && {
+        label: 'BF% Goal',
+        data: Array(labels.length).fill(profile.target_body_fat),
+        borderColor: '#f59e0b',
+        borderDash: [5, 5],
+        borderWidth: 2,
+        pointRadius: 0,
+        yAxisID: 'y1',
+      },
+      visibility.ffmiGoal && profile?.target_ffmi != null && {
+        label: 'FFMI Goal',
+        data: Array(labels.length).fill(profile.target_ffmi),
+        borderColor: '#3b82f6',
+        borderDash: [5, 5],
+        borderWidth: 2,
+        pointRadius: 0,
+        yAxisID: 'y2',
+      },
     ].filter(Boolean) as any[],
   }
 
@@ -195,47 +215,64 @@ export default function TrendsChart({ measurements, profile }: TrendsChartProps)
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { position: 'bottom' as const, labels: { padding: 20, usePointStyle: true } },
+      legend: {
+        position: 'bottom' as const,
+        labels: { padding: 20, usePointStyle: true },
+      },
       tooltip: {
         mode: 'index' as const,
         intersect: false,
         filter: (tooltipItem: any) => !tooltipItem.dataset.label?.includes('Goal'),
         callbacks: {
-          title: (context: any) => {
-            return context[0].label
-          },
           label: (context: any) => {
-            const index = context.dataIndex
-            const point = data[index]
-            const datasetLabel = context.dataset.label
+            const point = data[context.dataIndex]
+            const label = context.dataset.label
 
-            if (datasetLabel === 'Weight (lbs)') {
-              return `Weight: ${point.weight} lbs (avg of ${point.count} meas.)`
+            if (label === 'Weight (lbs)') {
+              return `Weight: ${point.weight} lbs (avg of ${point.count})`
             }
-            if (datasetLabel === 'Body Fat %') {
-              return point.body_fat 
-                ? `Body Fat: ${point.body_fat}% (avg of ${point.count} meas.)` 
-                : 'Body Fat: —'
+            if (label === 'Body Fat %') {
+              return point.body_fat ? `Body Fat: ${point.body_fat}% (avg of ${point.count})` : 'Body Fat: —'
             }
-            if (datasetLabel === 'FFMI') {
-              return point.ffmi 
-                ? `FFMI: ${point.ffmi} (avg of ${point.count} meas.)` 
-                : 'FFMI: —'
+            if (label === 'FFMI') {
+              return point.ffmi ? `FFMI: ${point.ffmi} (avg of ${point.count})` : 'FFMI: —'
             }
-            return `${datasetLabel}: ${context.raw}`
-          }
-        }
+            return `${label}: ${context.raw}`
+          },
+        },
       },
     },
     scales: {
-      x: { grid: { color: '#27272a' }, ticks: { display: false } },
-      y: { position: 'left' as const, title: { text: 'Weight (lbs)', color: '#10b981' }, ticks: { color: '#10b981' }, grid: { color: '#27272a' } },
-      y1: { position: 'right' as const, title: { text: 'Body Fat %', color: '#f59e0b' }, ticks: { color: '#f59e0b' }, grid: { drawOnChartArea: false } },
-      y2: { position: 'right' as const, title: { text: 'FFMI', color: '#3b82f6' }, ticks: { color: '#3b82f6' }, grid: { drawOnChartArea: false } },
+      x: {
+        grid: { color: '#27272a' },
+        ticks: { display: false },
+      },
+      y: {
+        position: 'left' as const,
+        title: { text: 'Weight (lbs)', color: '#10b981' },
+        ticks: { color: '#10b981' },
+        grid: { color: '#27272a' },
+      },
+      y1: {
+        position: 'right' as const,
+        offset: true,
+        title: { text: 'Body Fat %', color: '#f59e0b' },
+        ticks: { color: '#f59e0b' },
+        grid: { drawOnChartArea: false },
+      },
+      y2: {
+        position: 'right' as const,
+        offset: true,
+        title: { text: 'FFMI', color: '#3b82f6' },
+        ticks: { color: '#3b82f6', stepSize: 1 },
+        grid: { drawOnChartArea: false },
+        beginAtZero: false,
+      },
     },
   }
 
-  const toggle = (key: keyof VisibilitySettings) => setVisibility(v => ({ ...v, [key]: !v[key] }))
+  const toggle = (key: keyof VisibilitySettings) =>
+    setVisibility(v => ({ ...v, [key]: !v[key] }))
 
   return (
     <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-8 mb-8">
@@ -246,18 +283,32 @@ export default function TrendsChart({ measurements, profile }: TrendsChartProps)
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button onClick={() => setOffset(o => o + 1)} className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm">← Prev</button>
+          <button onClick={() => setOffset(o => o + 1)} className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm">
+            ← Prev
+          </button>
 
-          {(['week','month','quarter','year','all'] as TimePeriod[]).map(p => (
-            <button key={p} onClick={() => { setPeriod(p); setOffset(0) }}
-              className={`px-4 py-1.5 rounded-2xl text-sm ${period === p ? 'bg-emerald-600 text-white' : 'bg-zinc-800 hover:bg-zinc-700'}`}>
+          {(['week', 'month', 'quarter', 'year', 'all'] as TimePeriod[]).map(p => (
+            <button
+              key={p}
+              onClick={() => { setPeriod(p); setOffset(0) }}
+              className={`px-4 py-1.5 rounded-2xl text-sm ${period === p ? 'bg-emerald-600 text-white' : 'bg-zinc-800 hover:bg-zinc-700'}`}
+            >
               {p[0].toUpperCase() + p.slice(1)}
             </button>
           ))}
 
-          <button onClick={() => offset > 0 && setOffset(o => o - 1)} disabled={offset === 0} className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 rounded-xl text-sm">Next →</button>
+          <button
+            onClick={() => offset > 0 && setOffset(o => o - 1)}
+            disabled={offset === 0}
+            className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 rounded-xl text-sm"
+          >
+            Next →
+          </button>
 
-          <button onClick={() => setShowAdvanced(!showAdvanced)} className="ml-2 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm flex items-center gap-x-1">
+          <button
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="ml-2 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm flex items-center gap-x-1"
+          >
             <Settings size={16} /> Advanced
           </button>
         </div>
@@ -269,7 +320,12 @@ export default function TrendsChart({ measurements, profile }: TrendsChartProps)
           <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 text-sm">
             {Object.keys(visibility).map(k => (
               <label key={k} className="flex items-center gap-x-2 cursor-pointer">
-                <input type="checkbox" checked={visibility[k as keyof VisibilitySettings]} onChange={() => toggle(k as keyof VisibilitySettings)} className="accent-emerald-500" />
+                <input
+                  type="checkbox"
+                  checked={visibility[k as keyof VisibilitySettings]}
+                  onChange={() => toggle(k as keyof VisibilitySettings)}
+                  className="accent-emerald-500"
+                />
                 {k.replace(/([A-Z])/g, ' $1')}
               </label>
             ))}
@@ -278,7 +334,13 @@ export default function TrendsChart({ measurements, profile }: TrendsChartProps)
       )}
 
       <div className="h-[420px]">
-        {data.length > 0 ? <Line data={chartData} options={options} /> : <div className="h-full flex items-center justify-center text-zinc-400">No data in this period</div>}
+        {data.length > 0 ? (
+          <Line data={chartData} options={options} />
+        ) : (
+          <div className="h-full flex items-center justify-center text-zinc-400">
+            No data in this period
+          </div>
+        )}
       </div>
     </div>
   )
