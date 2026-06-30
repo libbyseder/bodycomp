@@ -129,9 +129,18 @@ export default function ImportCSV({ refetch }: ImportCSVProps) {
           }
 
           if (daysUpdated > 0) {
+            // Reset Withings dedup so Sync Now can merge on top of CSV data
+            const { data: { session } } = await supabase.auth.getSession()
+            if (session) {
+              await fetch('/api/reset-withings-sync', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${session.access_token}` },
+              })
+            }
+
             toast.success(
-              `Imported ${totalLogs} logs across ${daysUpdated} day${daysUpdated === 1 ? '' : 's'}` +
-              (uniqueDays !== daysUpdated ? ` (${uniqueDays - daysUpdated} failed)` : '')
+              `Imported ${totalLogs} logs across ${daysUpdated} day${daysUpdated === 1 ? '' : 's'}. ` +
+              `Click Sync Now to add Withings data.`
             )
             await refetch()
           } else {

@@ -72,7 +72,7 @@ function Dashboard() {
     }
   }
 
-  const syncWithings = async () => {
+  const syncWithings = async (force = false) => {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
@@ -85,15 +85,22 @@ function Dashboard() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
+        body: JSON.stringify({ force }),
       })
       const result = await res.json()
       if (result.success) {
-        const skipped = result.skippedAlreadySynced ?? 0
-        const detail = skipped > 0
-          ? `\n\n${skipped} readings were skipped (already synced). Use Delete All first to force a full re-import.`
-          : ''
-        alert((result.message || "Sync completed!") + detail)
+        alert(result.message || "Sync completed!")
         await refetch()
+
+        const skipped = result.skippedAlreadySynced ?? 0
+        if (!force && result.newReadingsMerged === 0 && skipped > 0) {
+          const retry = confirm(
+            `${skipped} Withings readings were skipped (synced in a previous session).\n\n` +
+            `Run a FULL re-sync now? This re-merges all Withings data into your daily records ` +
+            `(including 6/26–today) without deleting your CSV data.`
+          )
+          if (retry) await syncWithings(true)
+        }
       } else {
         alert(result.error || "Sync failed")
       }
@@ -169,10 +176,17 @@ function Dashboard() {
               Connect Withings
             </button>
             <button
-              onClick={syncWithings}
+              onClick={() => syncWithings(false)}
               className="flex items-center gap-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-2xl text-sm transition-colors"
             >
               Sync Now
+            </button>
+            <button
+              onClick={() => syncWithings(true)}
+              className="flex items-center gap-x-2 px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-2xl text-sm transition-colors"
+              title="Re-merge all Withings readings into your daily records"
+            >
+              Full Re-sync
             </button>
             <button
               onClick={() => setShowProfile(true)}

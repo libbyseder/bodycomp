@@ -58,6 +58,15 @@ function mergeAggregates(existing, incoming) {
   return { weight, body_fat, log_count, body_fat_log_count }
 }
 
+function parseBody(req) {
+  try {
+    if (!req.body) return {}
+    return typeof req.body === 'string' ? JSON.parse(req.body) : req.body
+  } catch {
+    return {}
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
@@ -71,6 +80,8 @@ export default async function handler(req, res) {
 
   if (!user) return res.status(401).json({ error: 'Invalid user' })
 
+  const { force = false } = parseBody(req)
+
   const { data: tokenData } = await supabase
     .from('withings_tokens')
     .select('*')
@@ -79,6 +90,13 @@ export default async function handler(req, res) {
 
   if (!tokenData?.access_token) {
     return res.status(400).json({ error: 'Withings not connected' })
+  }
+
+  if (force) {
+    await supabase
+      .from('withings_synced_grpids')
+      .delete()
+      .eq('user_id', user.id)
   }
 
   const { access_token } = tokenData
@@ -107,6 +125,8 @@ export default async function handler(req, res) {
     const groups = data.body?.measuregrps || []
     let newReadingsMerged = 0
     let skippedAlreadySynced = 0
+    let skippedNoData = 0
+    let skippedNoWeight = 0
     const daysUpdated = new Set()
     const errors = []
 
@@ -122,18 +142,23 @@ export default async function handler(req, res) {
         if (m.type === 6) bodyFat = realValue
       }
 
-      if (!weightKg && bodyFat == null) continue
-
-      const { data: alreadySynced } = await supabase
-        .from('withings_synced_grpids')
-        .select('grpid')
-        .eq('user_id', user.id)
-        .eq('grpid', group.grpid)
-        .maybeSingle()
-
-      if (alreadySynced) {
-        skippedAlreadySynced++
+      if (!weightKg && bodyFat == null) {
+        skippedNoData++
         continue
+      }
+
+      if (!force) {
+        const { data: alreadySynced } = await supabase
+          .from('withings_synced_grpids')
+          .select('grpid')
+          .eq('user_id', user.id)
+          .eq('grpid', group.grpid)
+          .maybeSingle()
+
+        if (alreadySynced) {
+          skippedAlreadySynced++
+          continue
+        }
       }
 
       const { data: existing } = await supabase
@@ -147,7 +172,10 @@ export default async function handler(req, res) {
         ? weightKg * 2.20462
         : existing?.weight ?? null
 
-      if (weightLbs == null) continue
+      if (weightLbs == null) {
+        skippedNoWeight++
+        continue
+      }
 
       const merged = mergeAggregates(
         existing ? rowToAggregate(existing) : null,
@@ -191,8 +219,13 @@ export default async function handler(req, res) {
       newReadingsMerged,
       daysUpdated: daysUpdated.size,
       skippedAlreadySynced,
+      skippedNoData,
+      skippedNoWeight,
+      force,
       errors: errors.slice(0, 5),
-      message: `Found ${groups.length} Withings readings. Merged ${newReadingsMerged} new logs across ${daysUpdated.size} days.`,
+      message: force
+        ? `Full re-sync: merged ${newReadingsMerged} Withings logs across ${daysUpdated.size} days.`
+        : `Merged ${newReadingsMerged} new Withings logs across ${daysUpdated.size} days.`,
     })
   } catch (error) {
     console.error(error)
