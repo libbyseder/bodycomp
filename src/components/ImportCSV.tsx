@@ -1,107 +1,104 @@
-import { useRef } from 'react'
+import { useState } from 'react'
 import Papa from 'papaparse'
+import { supabase } from '../lib/supabase'
 import { Upload } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { supabase } from '../lib/supabase'
-import { useAuth } from '../contexts/AuthContext'
 
 interface ImportCSVProps {
   refetch: () => Promise<void>
 }
 
 export default function ImportCSV({ refetch }: ImportCSVProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const { user } = useAuth()
+  const [isImporting, setIsImporting] = useState(false)
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
     if (!file) return
+
+    setIsImporting(true)
 
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
       complete: async (results) => {
-        const rows = results.data as any[]
-        const recordsToInsert: any[] = []
-        let skipped = 0
+        try {
+          const { data: { user } } = await supabase.auth.getUser()
+          if (!user) {
+            toast.error("Please log in first")
+            setIsImporting(false)
+            return
+          }
 
-        for (const row of rows) {
-          try {
-            let dateStr = row.date?.toString().trim()
-            if (!dateStr) { skipped++; continue }
+          let imported = 0
+          const errors: string[] = []
 
-            if (dateStr.includes('/')) {
-              const p = dateStr.split(/[/\s]/)
-              if (p.length >= 3) {
-                const m = p[0].padStart(2, '0')
-                const d = p[1].padStart(2, '0')
-                let y = p[2]
-                if (y.length === 2) y = '20' + y
-                dateStr = `${y}-${m}-${d}`
-              }
-            } else {
-              dateStr = dateStr.split('T')[0]
-            }
-
-            const weight = parseFloat(row.weight)
-            if (isNaN(weight) || weight <= 0) { skipped++; continue }
-
-            const body_fat = row.body_fat && row.body_fat.toString().trim() !== '' 
-              ? parseFloat(row.body_fat) 
+          for (const row of results.data as any[]) {
+            const date = row.date || row.Date || row.DATE
+            const weight = parseFloat(row.weight || row.Weight || row.WEIGHT)
+            const body_fat = row.body_fat || row["body fat"] || row["Body Fat"] 
+              ? parseFloat(row.body_fat || row["body fat"] || row["Body Fat"]) 
               : null
 
-            recordsToInsert.push({
-              user_id: user?.id,
-              date: dateStr,
-              weight: weight,
-              body_fat: body_fat,
+            if (!date || isNaN(weight)) {
+              errors.push(`Skipped row with missing/invalid data: ${JSON.stringify(row)}`)
+              continue
+            }
+
+            const { error } = await supabase.from('measurements').upsert({
+              user_id: user.id,
+              date: date.trim(),
+              weight,
+              body_fat,
+            }, {
+              onConflict: 'user_id,date'
             })
-          } catch {
-            skipped++
+
+            if (error) {
+              errors.push(`Error on ${date}: ${error.message}`)
+            } else {
+              imported++
+            }
           }
-        }
 
-        if (recordsToInsert.length === 0) {
-          toast.error("No valid rows found")
-          return
-        }
-
-        const BATCH_SIZE = 500
-        let success = 0
-        let failed = 0
-
-        for (let i = 0; i < recordsToInsert.length; i += BATCH_SIZE) {
-          const batch = recordsToInsert.slice(i, i + BATCH_SIZE)
-          const { error } = await supabase.from('measurements').insert(batch)
-
-          if (error) {
-            failed += batch.length
+          if (imported > 0) {
+            toast.success(`Imported ${imported} measurements from CSV`)
+            await refetch()
           } else {
-            success += batch.length
+            toast.error("No valid measurements were imported")
           }
-        }
 
-        if (fileInputRef.current) fileInputRef.current.value = ''
-
-        if (success > 0) {
-          toast.success(`Imported ${success} measurements`)
-          await refetch() // This now updates the main table
+          if (errors.length > 0) {
+            console.warn("CSV import errors:", errors)
+            toast.error(`${errors.length} rows had issues (check console)`)
+          }
+        } catch (err) {
+          console.error(err)
+          toast.error("Failed to import CSV")
+        } finally {
+          setIsImporting(false)
+          // Reset file input
+          e.target.value = ''
         }
-        if (skipped > 0) toast(`Skipped ${skipped} invalid rows`, { icon: '⚠️' })
-        if (failed > 0) toast.error(`${failed} rows failed`)
+      },
+      error: (err) => {
+        console.error(err)
+        toast.error("Failed to parse CSV file")
+        setIsImporting(false)
       }
     })
   }
 
   return (
-    <div>
-      <input type="file" ref={fileInputRef} accept=".csv" onChange={handleFileSelect} className="hidden" />
-      <button
-        onClick={() => fileInputRef.current?.click()}
-        className="flex items-center gap-x-2 px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-2xl text-sm transition-colors"
-      >
-        <Upload size={16} /> Import CSV
-      </button>
-    </div>
+    <label className="flex items-center gap-x-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm cursor-pointer transition-colors">
+      <Upload size={16} />
+      {isImporting ? 'Importing...' : 'Import CSV'}
+      <input
+        type="file"
+        accept=".csv"
+        onChange={handleFileSelect}
+        disabled={isImporting}
+        className="hidden"
+      />
+    </label>
   )
 }
