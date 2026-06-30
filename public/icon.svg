@@ -1,6 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="RecompTrack">
   <rect width="512" height="512" rx="112" fill="#09090b"/>
-  <rect x="32" y="32" width="448" height="448" rx="96" fill="none" stroke="#10b981" stroke-width="8" opacity="0.35"/>
-  <text x="256" y="290" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="180" font-weight="700" fill="#10b981">RT</text>
-  <rect x="108" y="352" width="296" height="10" rx="5" fill="#34d399" opacity="0.8"/>
+  <rect x="36" y="36" width="440" height="440" rx="92" fill="none" stroke="#10b981" stroke-width="10" opacity="0.4"/>
+  <rect x="88" y="214" width="64" height="84" rx="18" fill="#10b981"/>
+  <rect x="360" y="214" width="64" height="84" rx="18" fill="#10b981"/>
+  <rect x="140" y="236" width="232" height="40" rx="20" fill="#34d399"/>
+  <circle cx="120" cy="256" r="52" fill="none" stroke="#10b981" stroke-width="14"/>
+  <circle cx="392" cy="256" r="52" fill="none" stroke="#10b981" stroke-width="14"/>
+  <rect x="156" y="360" width="200" height="12" rx="6" fill="#34d399" opacity="0.85"/>
 </svg>
