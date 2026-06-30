@@ -1,14 +1,31 @@
 import { useState } from 'react'
 import Papa from 'papaparse'
 import { supabase } from '../lib/supabase'
-import { parseCsvDate } from '../lib/parseCsvDate'
+import { parseCsvDate, parseCsvWeight, cleanCsvCell } from '../lib/parseCsvDate'
 import { mergeAggregates, readingToAggregate, type DailyAggregate } from '../lib/mergeMeasurement'
-import { upsertDailyAggregate } from '../lib/upsertDailyMeasurement'
 import { Upload } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface ImportCSVProps {
   refetch: () => Promise<void>
+}
+
+function getCell(row: Record<string, unknown>, keys: string[]): string | undefined {
+  for (const key of keys) {
+    if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
+      return String(row[key])
+    }
+  }
+  const lower = Object.fromEntries(
+    Object.entries(row).map(([k, v]) => [k.toLowerCase().trim(), v])
+  )
+  for (const key of keys) {
+    const val = lower[key.toLowerCase()]
+    if (val !== undefined && val !== null && val !== '') {
+      return String(val)
+    }
+  }
+  return undefined
 }
 
 export default function ImportCSV({ refetch }: ImportCSVProps) {
@@ -36,24 +53,27 @@ export default function ImportCSV({ refetch }: ImportCSVProps) {
           const csvByDate: Record<string, DailyAggregate> = {}
           let totalLogs = 0
 
-          for (let i = 0; i < (results.data as any[]).length; i++) {
-            const row = (results.data as any[])[i]
-            const rawDate = row.date || row.Date || row.DATE
-            const weight = parseFloat(row.weight || row.Weight || row.WEIGHT)
-            const rawBodyFat = row.body_fat || row['body fat'] || row['Body Fat'] || row.bodyFat
-            const parsedBodyFat =
-              rawBodyFat !== undefined && rawBodyFat !== '' && rawBodyFat !== null
-                ? parseFloat(rawBodyFat)
-                : null
+          for (let i = 0; i < (results.data as Record<string, unknown>[]).length; i++) {
+            const row = (results.data as Record<string, unknown>[])[i]
+            const rawDate = getCell(row, [
+              'date', 'Date', 'DATE', 'measurement date', 'Measurement Date',
+            ])
+            const rawWeight = getCell(row, ['weight', 'Weight', 'WEIGHT'])
+            const rawBodyFat = getCell(row, [
+              'body_fat', 'body fat', 'Body Fat', 'bodyFat', 'BODY_FAT', 'bf', 'BF',
+            ])
+
+            const weight = rawWeight ? parseCsvWeight(rawWeight) : NaN
+            const parsedBodyFat = rawBodyFat ? parseFloat(cleanCsvCell(rawBodyFat).replace(/,/g, '')) : null
 
             if (!rawDate || isNaN(weight)) {
               errors.push(`Row ${i + 1}: missing or invalid date/weight`)
               continue
             }
 
-            const isoDate = parseCsvDate(String(rawDate))
+            const isoDate = parseCsvDate(rawDate)
             if (!isoDate) {
-              errors.push(`Row ${i + 1}: unrecognized date format "${rawDate}"`)
+              errors.push(`Row ${i + 1}: unrecognized date "${rawDate}"`)
               continue
             }
 
@@ -64,26 +84,54 @@ export default function ImportCSV({ refetch }: ImportCSVProps) {
             totalLogs++
           }
 
+          const uniqueDays = Object.keys(csvByDate).length
+
           if (totalLogs === 0) {
             toast.error('No valid measurements found in CSV')
             if (errors.length > 0) console.warn('CSV import errors:', errors)
             return
           }
 
-          let daysUpdated = 0
+          // Replace each date with CSV averages (idempotent — re-import won't double log_count)
+          const records = Object.entries(csvByDate).map(([isoDate, agg]) => ({
+            user_id: user.id,
+            date: isoDate,
+            weight: agg.weight,
+            body_fat: agg.body_fat,
+            log_count: agg.log_count,
+            body_fat_log_count: agg.body_fat_log_count,
+            logged_at: new Date().toISOString(),
+          }))
 
-          for (const [isoDate, csvAggregate] of Object.entries(csvByDate)) {
-            const { error } = await upsertDailyAggregate(supabase, user.id, isoDate, csvAggregate)
+          let daysUpdated = 0
+          const BATCH_SIZE = 100
+
+          for (let i = 0; i < records.length; i += BATCH_SIZE) {
+            const batch = records.slice(i, i + BATCH_SIZE)
+            const { error } = await supabase
+              .from('measurements')
+              .upsert(batch, { onConflict: 'user_id,date' })
+
             if (error) {
-              errors.push(`Error on ${isoDate}: ${error.message}`)
+              for (const record of batch) {
+                const { error: rowError } = await supabase
+                  .from('measurements')
+                  .upsert(record, { onConflict: 'user_id,date' })
+                if (rowError) {
+                  errors.push(`Error on ${record.date}: ${rowError.message}`)
+                } else {
+                  daysUpdated++
+                }
+              }
             } else {
-              daysUpdated++
+              daysUpdated += batch.length
             }
           }
 
           if (daysUpdated > 0) {
             toast.success(
-              `Imported ${totalLogs} logs across ${daysUpdated} day${daysUpdated === 1 ? '' : 's'}`
+              `Imported ${totalLogs} logs across ${daysUpdated} day${daysUpdated === 1 ? '' : 's'}` +
+              (uniqueDays !== daysUpdated ? ` (${uniqueDays - daysUpdated} failed)` : '')
             )
             await refetch()
           } else {
@@ -92,7 +140,7 @@ export default function ImportCSV({ refetch }: ImportCSVProps) {
 
           if (errors.length > 0) {
             console.warn('CSV import errors:', errors)
-            toast.error(`${errors.length} rows had issues (check browser console)`)
+            toast.error(`${errors.length} issues — open browser console (F12) for details`)
           }
         } catch (err) {
           console.error(err)

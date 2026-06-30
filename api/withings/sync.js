@@ -106,6 +106,8 @@ export default async function handler(req, res) {
 
     const groups = data.body?.measuregrps || []
     let newReadingsMerged = 0
+    let skippedAlreadySynced = 0
+    const daysUpdated = new Set()
     const errors = []
 
     for (const group of groups) {
@@ -129,7 +131,10 @@ export default async function handler(req, res) {
         .eq('grpid', group.grpid)
         .maybeSingle()
 
-      if (alreadySynced) continue
+      if (alreadySynced) {
+        skippedAlreadySynced++
+        continue
+      }
 
       const { data: existing } = await supabase
         .from('measurements')
@@ -177,14 +182,17 @@ export default async function handler(req, res) {
       }
 
       newReadingsMerged++
+      daysUpdated.add(date)
     }
 
     return res.status(200).json({
       success: true,
       found: groups.length,
       newReadingsMerged,
+      daysUpdated: daysUpdated.size,
+      skippedAlreadySynced,
       errors: errors.slice(0, 5),
-      message: `Found ${groups.length} Withings readings. Merged ${newReadingsMerged} new logs into your daily records.`,
+      message: `Found ${groups.length} Withings readings. Merged ${newReadingsMerged} new logs across ${daysUpdated.size} days.`,
     })
   } catch (error) {
     console.error(error)

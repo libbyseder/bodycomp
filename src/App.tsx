@@ -88,7 +88,11 @@ function Dashboard() {
       })
       const result = await res.json()
       if (result.success) {
-        alert(result.message || "Sync completed!")
+        const skipped = result.skippedAlreadySynced ?? 0
+        const detail = skipped > 0
+          ? `\n\n${skipped} readings were skipped (already synced). Use Delete All first to force a full re-import.`
+          : ''
+        alert((result.message || "Sync completed!") + detail)
         await refetch()
       } else {
         alert(result.error || "Sync failed")
@@ -105,12 +109,18 @@ function Dashboard() {
       return
     }
     try {
-      const { error } = await supabase
-        .from('measurements')
-        .delete()
-        .eq('user_id', user?.id)
-      if (error) throw error
-      toast.success("All measurements deleted")
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        toast.error("Please log in first")
+        return
+      }
+      const response = await fetch('/api/delete-all', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Delete failed')
+      toast.success("All measurements deleted (Withings sync history reset)")
       await refetch()
     } catch (err) {
       console.error(err)
