@@ -2,14 +2,23 @@ import { useState } from 'react'
 import { LogOut, Menu, X } from 'lucide-react'
 import ImportCSV from './ImportCSV'
 import WithingsSync from './WithingsSync'
+import ConnectWithingsButton from './ConnectWithingsButton'
 
 interface DashboardHeaderProps {
   refetch: () => Promise<void>
   onProfile: () => void
   onSignOut: () => void
+  withingsConnected: boolean
+  withingsLoading?: boolean
 }
 
-export default function DashboardHeader({ refetch, onProfile, onSignOut }: DashboardHeaderProps) {
+export default function DashboardHeader({
+  refetch,
+  onProfile,
+  onSignOut,
+  withingsConnected,
+  withingsLoading = false,
+}: DashboardHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false)
 
   const closeMenu = () => setMenuOpen(false)
@@ -46,12 +55,11 @@ export default function DashboardHeader({ refetch, onProfile, onSignOut }: Dashb
 
         <nav className="hidden lg:flex items-center gap-x-2 flex-wrap justify-end">
           <ImportCSV refetch={refetch} />
-          <a
-            href="/api/withings/auth"
-            className={`${navButtonClass} bg-blue-600 hover:bg-blue-700`}
-          >
-            Connect Withings
-          </a>
+          <ConnectWithingsButton
+            connected={withingsConnected}
+            loading={withingsLoading}
+            className={navButtonClass}
+          />
           <WithingsSync refetch={refetch} />
           <button onClick={onProfile} className={`${navButtonClass} bg-zinc-800 hover:bg-zinc-700`}>
             Profile
@@ -65,13 +73,12 @@ export default function DashboardHeader({ refetch, onProfile, onSignOut }: Dashb
       {menuOpen && (
         <nav className="lg:hidden mt-4 p-4 bg-zinc-900 border border-zinc-700 rounded-2xl flex flex-col gap-2">
           <ImportCSV refetch={refetch} />
-          <a
-            href="/api/withings/auth"
-            onClick={closeMenu}
-            className={`${navButtonClass} bg-blue-600 hover:bg-blue-700`}
-          >
-            Connect Withings
-          </a>
+          <ConnectWithingsButton
+            connected={withingsConnected}
+            loading={withingsLoading}
+            className={navButtonClass}
+            onNavigate={closeMenu}
+          />
           <WithingsSync refetch={refetch} fullWidth />
           <button
             onClick={() => { closeMenu(); onProfile() }}

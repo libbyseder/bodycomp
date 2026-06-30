@@ -11,13 +11,15 @@ import DashboardHeader from './components/DashboardHeader'
 import MeasurementsTable from './components/MeasurementsTable'
 import { useMeasurements } from './hooks/useMeasurements'
 import { useProfile } from './hooks/useProfile'
+import { useWithingsConnection } from './hooks/useWithingsConnection'
 import toast from 'react-hot-toast'
 import { Plus, RefreshCw } from 'lucide-react'
 
 function Dashboard() {
   const { user, signOut } = useAuth()
   const { measurements, deleteMeasurement, refetch } = useMeasurements()
-  const { profile, refetchProfile } = useProfile()   // ← Updated with refetchProfile
+  const { profile, refetchProfile } = useProfile()
+  const { connected: withingsConnected, loading: withingsLoading, refetch: refetchWithings } = useWithingsConnection()
 
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showQuickLog, setShowQuickLog] = useState(false)
@@ -63,6 +65,7 @@ function Dashboard() {
       const result = await response.json()
       if (result.success) {
         alert("Withings connected successfully!")
+        await refetchWithings()
       } else {
         alert("Failed to save Withings connection")
         console.error(result)
@@ -124,6 +127,8 @@ function Dashboard() {
           refetch={refetch}
           onProfile={() => setShowProfile(true)}
           onSignOut={signOut}
+          withingsConnected={withingsConnected}
+          withingsLoading={withingsLoading}
         />
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
