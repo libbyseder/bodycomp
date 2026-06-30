@@ -82,10 +82,10 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
 
     toast.success('Profile updated')
 
-    // Close the modal FIRST (this is the key change)
+    // Close modal FIRST (this guarantees it closes)
     onClose()
 
-    // Then refresh profile data in the background
+    // Then refresh profile in background
     if (onSave) {
       const result = onSave()
       if (result && typeof result.then === 'function') {
