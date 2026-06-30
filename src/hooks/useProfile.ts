@@ -4,7 +4,6 @@ import { useAuth } from '../contexts/AuthContext'
 
 export interface Profile {
   id?: string
-  user_id: string
   name?: string | null
   height_inches?: number | null
   gender?: 'male' | 'female' | null
@@ -32,7 +31,7 @@ export function useProfile() {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('id', user.id)           // ← Changed from user_id to id
       .single()
 
     if (!error) {
