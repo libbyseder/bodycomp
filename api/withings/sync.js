@@ -52,7 +52,7 @@ export default async function handler(req, res) {
     }
 
     const groups = data.body?.measuregrps || []
-    let imported = 0
+    let newRowsAdded = 0
     const errors = []
 
     for (const group of groups) {
@@ -77,13 +77,15 @@ export default async function handler(req, res) {
             weight: weightLbs,
             body_fat: bodyFat,
           }, {
-            onConflict: 'user_id,date'   // ← This prevents duplicates
+            onConflict: 'user_id,date'
           })
 
         if (error) {
-          errors.push({ date, message: error.message })
+          if (error.code !== '23505') { // ignore duplicate key errors
+            errors.push({ date, message: error.message })
+          }
         } else {
-          imported++
+          newRowsAdded++
         }
       }
     }
@@ -91,9 +93,9 @@ export default async function handler(req, res) {
     return res.status(200).json({
       success: true,
       found: groups.length,
-      imported,
+      newRowsAdded,
       errors: errors.slice(0, 5),
-      message: `Found ${groups.length} records from Withings. Imported/updated ${imported} measurements.`,
+      message: `Found ${groups.length} records from Withings. Added ${newRowsAdded} new measurements this sync.`,
     })
   } catch (error) {
     console.error(error)
