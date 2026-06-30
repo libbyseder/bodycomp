@@ -1,62 +1,81 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
-export interface Profile {
-  id?: string
+export interface Measurement {
+  id: string
   user_id: string
-  name?: string | null
-  height_inches?: number | null
-  gender?: 'male' | 'female' | null
-  target_weight?: number | null
-  target_body_fat?: number | null
-  target_ffmi?: number | null
-  created_at?: string
-  updated_at?: string
+  date: string
+  weight: number
+  body_fat: number | null
+  height_inches: number | null
+  gender: "male" | "female" | null
+  created_at: string
 }
 
-export function useProfile() {
+export function useMeasurements() {
   const { user } = useAuth()
-  const [profile, setProfile] = useState<Profile | null>(null)
+  const [measurements, setMeasurements] = useState<Measurement[]>([])
   const [loading, setLoading] = useState(true)
 
-  const fetchProfile = useCallback(async () => {
-    if (!user) {
-      setProfile(null)
-      setLoading(false)
-      return
-    }
-
+  const fetchMeasurements = async () => {
+    if (!user) return
     setLoading(true)
 
     const { data, error } = await supabase
-      .from('profiles')
+      .from('measurements')
       .select('*')
       .eq('user_id', user.id)
+      .order('date', { ascending: false })
+
+    if (!error && data) {
+      setMeasurements(data)
+    }
+    setLoading(false)
+  }
+
+  const addMeasurement = async (
+    date: string,
+    weight: number,
+    body_fat: number | null = null
+  ) => {
+    if (!user) return { error: 'No user' }
+
+    const { data, error } = await supabase
+      .from('measurements')
+      .insert({
+        user_id: user.id,
+        date,
+        weight,
+        body_fat,
+      })
+      .select()
       .single()
 
     if (!error) {
-      setProfile(data)
-    } else if (error.code === 'PGRST116') {
-      // No profile row exists yet — this is normal for new users
-      setProfile(null)
-    } else {
-      console.error('Error fetching profile:', error)
+      await fetchMeasurements()
     }
+    return { data, error }
+  }
 
-    setLoading(false)
-  }, [user?.id])
+  const deleteMeasurement = async (id: string) => {
+    const { error } = await supabase.from('measurements').delete().eq('id', id)
 
-  // Expose this so ProfileModal can trigger an immediate refresh
-  const refetchProfile = fetchProfile
+    if (!error) {
+      await fetchMeasurements()
+    }
+    return { error }
+  }
 
   useEffect(() => {
-    fetchProfile()
-  }, [fetchProfile])
+    fetchMeasurements()
+  }, [user?.id])
 
   return {
-    profile,
+    measurements,
     loading,
-    refetchProfile,     // ← Now available
+    addMeasurement,
+    deleteMeasurement,
+    refetch: fetchMeasurements,
   }
 }
