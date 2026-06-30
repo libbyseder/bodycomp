@@ -18,6 +18,7 @@ export default async function handler(req, res) {
 
   if (!user) return res.status(401).json({ error: 'Invalid user' })
 
+  // Get stored Withings tokens
   const { data: tokenData } = await supabase
     .from('withings_tokens')
     .select('*')
@@ -31,6 +32,7 @@ export default async function handler(req, res) {
   const { access_token } = tokenData
 
   try {
+    // Pull last ~2 years of data
     const startDate = Math.floor(Date.now() / 1000) - (2 * 365 * 24 * 60 * 60)
 
     const response = await fetch('https://wbsapi.withings.net/measure', {
@@ -39,7 +41,7 @@ export default async function handler(req, res) {
       body: new URLSearchParams({
         action: 'getmeas',
         access_token,
-        meastype: '1,6',
+        meastype: '1,6',        // 1 = Weight, 6 = Body Fat %
         category: '1',
         startdate: startDate,
       }),
@@ -61,13 +63,14 @@ export default async function handler(req, res) {
       let bodyFat = null
 
       for (const m of group.measures) {
-        const realValue = m.value * Math.pow(10, m.unit)   // ← FIXED
+        const realValue = m.value * Math.pow(10, m.unit)   // correct conversion
         if (m.type === 1) weightKg = realValue
         if (m.type === 6) bodyFat = realValue
       }
 
-      if (weightKg) {
-        const weightLbs = weightKg * 2.20462
+      // Insert if we have weight OR body fat (more inclusive)
+      if (weightKg || bodyFat) {
+        const weightLbs = weightKg ? weightKg * 2.20462 : null
 
         const { error } = await supabase.from('measurements').insert({
           user_id: user.id,
@@ -88,10 +91,11 @@ export default async function handler(req, res) {
       success: true,
       found: groups.length,
       imported,
-      errors: errors.slice(0, 3),   // first few errors for debugging
-      message: `Found ${groups.length}. Imported ${imported}. Errors: ${errors.length}`,
+      errors: errors.slice(0, 5),
+      message: `Found ${groups.length} records from Withings. Imported ${imported} new measurements.`,
     })
   } catch (error) {
+    console.error(error)
     return res.status(500).json({ error: 'Sync failed', details: error.message })
   }
 }
