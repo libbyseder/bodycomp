@@ -80,7 +80,10 @@ export default async function handler(req, res) {
         })
 
         if (error) {
-          errors.push({ date, message: error.message })
+          // Only count real errors (ignore duplicate key errors since we're incremental)
+          if (error.code !== '23505') {
+            errors.push({ date, message: error.message })
+          }
         } else {
           imported++
         }
