@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { LogOut, Menu, X } from 'lucide-react'
+import BodyTrendBrand from './BodyTrendBrand'
 import ImportCSV from './ImportCSV'
 import WithingsSync from './WithingsSync'
 import ConnectWithingsButton from './ConnectWithingsButton'
@@ -29,19 +30,7 @@ export default function DashboardHeader({
   return (
     <header className="mb-6 sm:mb-8">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-x-2 sm:gap-x-3 min-w-0">
-          <div className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 bg-emerald-500 rounded-2xl flex items-center justify-center">
-            <span className="text-white text-xl sm:text-2xl">🏋️</span>
-          </div>
-          <div className="min-w-0">
-            <span className="font-semibold text-xl sm:text-2xl lg:text-3xl tracking-tighter block truncate">
-              RecompTrack
-            </span>
-            <span className="text-emerald-400 text-[10px] sm:text-xs block -mt-0.5 sm:-mt-1.5">
-              FFMI + BODY RECOMP
-            </span>
-          </div>
-        </div>
+        <BodyTrendBrand compact />
 
         <button
           type="button"

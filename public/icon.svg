@@ -1,10 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="RecompTrack">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="BodyTrend">
   <rect width="512" height="512" rx="112" fill="#09090b"/>
-  <rect x="36" y="36" width="440" height="440" rx="92" fill="none" stroke="#10b981" stroke-width="10" opacity="0.4"/>
-  <rect x="88" y="214" width="64" height="84" rx="18" fill="#10b981"/>
-  <rect x="360" y="214" width="64" height="84" rx="18" fill="#10b981"/>
-  <rect x="140" y="236" width="232" height="40" rx="20" fill="#34d399"/>
-  <circle cx="120" cy="256" r="52" fill="none" stroke="#10b981" stroke-width="14"/>
-  <circle cx="392" cy="256" r="52" fill="none" stroke="#10b981" stroke-width="14"/>
-  <rect x="156" y="360" width="200" height="12" rx="6" fill="#34d399" opacity="0.85"/>
+  <rect x="36" y="36" width="440" height="440" rx="96" fill="none" stroke="#22d3ee" stroke-width="8" opacity="0.22"/>
+  <g fill="none" stroke="#22d3ee" stroke-width="34" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M104 88 v336"/>
+    <path d="M104 88 h120 c68 0 108 36 108 84 c0 44 -32 76 -76 84 c60 8 100 44 100 100 c0 68 -52 116 -132 116 H104"/>
+    <path d="M272 296 L392 176"/>
+    <path d="M392 176 H332"/>
+    <path d="M392 176 V248"/>
+    <path d="M216 344 L292 268 L364 300" stroke-width="26"/>
+  </g>
 </svg>

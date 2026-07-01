@@ -1,7 +1,7 @@
 {
-  "name": "GOALS (Body Comp)",
-  "short_name": "GOALS (Body Comp)",
-  "description": "Track body composition, FFMI, and recomp progress.",
+  "name": "BodyTrend",
+  "short_name": "BodyTrend",
+  "description": "Track your body composition trends.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -9,6 +9,12 @@
   "background_color": "#09090b",
   "theme_color": "#09090b",
   "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
     {
       "src": "/icon-192.png",
       "sizes": "192x192",

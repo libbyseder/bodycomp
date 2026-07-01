@@ -12,6 +12,7 @@ import SmoothedTrendsChart from './components/SmoothedTrendsChart'
 import ImportCSV from './components/ImportCSV'
 import DashboardHeader from './components/DashboardHeader'
 import InstallPrompt from './components/InstallPrompt'
+import BodyTrendBrand from './components/BodyTrendBrand'
 import MeasurementsTable from './components/MeasurementsTable'
 import { useMeasurements } from './hooks/useMeasurements'
 import { useProfile } from './hooks/useProfile'
@@ -117,9 +118,8 @@ function Dashboard() {
   if (!user) {
     return (
       <div className="min-h-screen bg-zinc-950 text-zinc-200 flex items-center justify-center px-4">
-        <div className="text-center max-w-lg">
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tighter mb-4">RecompTrack</h1>
-          <p className="text-base sm:text-xl text-zinc-400 mb-8">Track your body composition with precision.</p>
+        <div className="text-center max-w-lg flex flex-col items-center">
+          <BodyTrendBrand className="mb-8 justify-center" />
           <button
             onClick={() => setShowAuthModal(true)}
             className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 rounded-2xl font-medium"

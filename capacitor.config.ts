@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli'
 
 const config: CapacitorConfig = {
   appId: 'com.recomptrack.app',
-  appName: 'GOALS (Body Comp)',
+  appName: 'BodyTrend',
   webDir: 'dist',
   ios: {
     contentInset: 'automatic',

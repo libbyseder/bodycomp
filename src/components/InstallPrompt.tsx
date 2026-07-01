@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { X, Share, Plus } from 'lucide-react'
+import BodyTrendLogo from './BodyTrendLogo'
 
 function isIos(): boolean {
   if (typeof navigator === 'undefined') return false
@@ -34,11 +35,14 @@ export default function InstallPrompt() {
     <div className="fixed bottom-4 left-4 right-4 z-50 sm:left-auto sm:right-4 sm:max-w-sm">
       <div className="bg-zinc-900 border border-emerald-600/40 rounded-2xl p-4 shadow-xl">
         <div className="flex items-start justify-between gap-3 mb-3">
-          <div>
-            <p className="font-semibold text-white">Install GOALS (Body Comp)</p>
+          <div className="flex items-start gap-3">
+            <BodyTrendLogo className="h-8 w-8 shrink-0" showGlow={false} />
+            <div>
+            <p className="font-semibold text-white">Install BodyTrend</p>
             <p className="text-sm text-zinc-400 mt-1">
               Add to your Home Screen for a full-screen app experience.
             </p>
+            </div>
           </div>
           <button
             type="button"
