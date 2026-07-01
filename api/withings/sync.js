@@ -1,9 +1,11 @@
-import { createClient } from '@supabase/supabase-js'
+import {
+  getSupabaseAdmin,
+  getValidWithingsAccessToken,
+  isWithingsAuthError,
+  refreshWithingsAccessToken,
+} from '../../server/withingsTokens.js'
 
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+const supabase = getSupabaseAdmin()
 
 function round1(n) {
   return parseFloat(n.toFixed(1))
@@ -109,7 +111,9 @@ async function fetchAllMeasureGroups(accessToken, startDate) {
 
     const data = await response.json()
     if (data.status !== 0) {
-      throw new Error(data.error || `Withings API status ${data.status}`)
+      const err = new Error(data.error || `Withings API status ${data.status}`)
+      err.withingsStatus = data.status
+      throw err
     }
 
     const grps = data.body?.measuregrps || []
@@ -137,14 +141,19 @@ export default async function handler(req, res) {
 
   const { force = false } = parseBody(req)
 
-  const { data: tokenData } = await supabase
-    .from('withings_tokens')
-    .select('*')
-    .eq('user_id', user.id)
-    .single()
-
-  if (!tokenData?.access_token) {
-    return res.status(400).json({ error: 'Withings not connected' })
+  let tokenData
+  try {
+    const { data } = await supabase
+      .from('withings_tokens')
+      .select('*')
+      .eq('user_id', user.id)
+      .single()
+    tokenData = data
+    if (!tokenData?.access_token) {
+      return res.status(400).json({ error: 'Withings not connected' })
+    }
+  } catch (error) {
+    return res.status(400).json({ error: error.message || 'Withings not connected' })
   }
 
   if (force) {
@@ -157,7 +166,16 @@ export default async function handler(req, res) {
   try {
     // 10 years of history
     const startDate = Math.floor(Date.now() / 1000) - (10 * 365 * 24 * 60 * 60)
-    const allGroups = await fetchAllMeasureGroups(tokenData.access_token, startDate)
+    let accessToken = await getValidWithingsAccessToken(supabase, user.id)
+
+    let allGroups
+    try {
+      allGroups = await fetchAllMeasureGroups(accessToken, startDate)
+    } catch (error) {
+      if (!isWithingsAuthError(error.withingsStatus)) throw error
+      accessToken = await refreshWithingsAccessToken(supabase, { ...tokenData, user_id: user.id })
+      allGroups = await fetchAllMeasureGroups(accessToken, startDate)
+    }
 
     // Load existing synced grpids once (not per-reading queries)
     const syncedGrpids = new Set()
@@ -269,6 +287,15 @@ export default async function handler(req, res) {
 
     const daysUpdated = lastLoggedAt.size
 
+    if (errors.length > 0) {
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to save synced measurements',
+        details: errors[0].message,
+        errors: errors.slice(0, 5),
+      })
+    }
+
     return res.status(200).json({
       success: true,
       found: allGroups.length,
@@ -285,6 +312,10 @@ export default async function handler(req, res) {
     })
   } catch (error) {
     console.error(error)
-    return res.status(500).json({ error: 'Sync failed', details: error.message })
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Sync failed',
+      details: error.message,
+    })
   }
 }

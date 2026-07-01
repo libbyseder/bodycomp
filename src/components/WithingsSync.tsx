@@ -47,10 +47,10 @@ export default function WithingsSync({ refetch, fullWidth = false }: WithingsSyn
         body: JSON.stringify({ force }),
       })
 
-      const result = await res.json()
+      const result = await res.json().catch(() => ({}))
 
-      if (!result.success) {
-        toast.error(result.error || 'Sync failed')
+      if (!res.ok || result.success === false) {
+        toast.error(result.details || result.error || `Sync failed (${res.status})`)
         return
       }
 
