@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
 import { X, Info } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -19,7 +20,51 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
     target_ffmi: 18,
   })
   const [showFfmiTooltip, setShowFfmiTooltip] = useState(false)
+  const [tooltipStyle, setTooltipStyle] = useState<{ top: number; left: number; width: number } | null>(null)
+  const [isCoarsePointer, setIsCoarsePointer] = useState(false)
   const [loading, setLoading] = useState(false)
+  const ffmiInfoRef = useRef<HTMLButtonElement>(null)
+  const ffmiTooltipRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setIsCoarsePointer(window.matchMedia('(pointer: coarse)').matches)
+  }, [])
+
+  const updateTooltipPosition = useCallback(() => {
+    const button = ffmiInfoRef.current
+    if (!button) return
+
+    const rect = button.getBoundingClientRect()
+    const width = Math.min(288, window.innerWidth - 24)
+    const left = Math.max(12, Math.min(rect.right - width, window.innerWidth - width - 12))
+    const tooltipHeight = ffmiTooltipRef.current?.offsetHeight ?? 260
+    const spaceAbove = rect.top
+    const spaceBelow = window.innerHeight - rect.bottom
+    const showAbove = spaceAbove >= tooltipHeight + 8 || spaceAbove >= spaceBelow
+    const top = showAbove
+      ? Math.max(12, rect.top - tooltipHeight - 8)
+      : Math.min(window.innerHeight - tooltipHeight - 12, rect.bottom + 8)
+
+    setTooltipStyle({ top, left, width })
+  }, [])
+
+  useEffect(() => {
+    if (!showFfmiTooltip) {
+      setTooltipStyle(null)
+      return
+    }
+
+    updateTooltipPosition()
+    const raf = window.requestAnimationFrame(updateTooltipPosition)
+    window.addEventListener('resize', updateTooltipPosition)
+    window.addEventListener('scroll', updateTooltipPosition, true)
+
+    return () => {
+      window.cancelAnimationFrame(raf)
+      window.removeEventListener('resize', updateTooltipPosition)
+      window.removeEventListener('scroll', updateTooltipPosition, true)
+    }
+  }, [showFfmiTooltip, updateTooltipPosition, formData.gender])
 
   useEffect(() => {
     if (isOpen) {
@@ -126,11 +171,12 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 sm:p-6 overflow-y-auto">
-      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl w-full max-w-md p-5 sm:p-8 relative my-auto max-h-[calc(100dvh-2rem)] overflow-y-auto">
-        <button onClick={onClose} className="absolute top-5 right-5 sm:top-6 sm:right-6 text-zinc-400 hover:text-white">
+      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl w-full max-w-md relative my-auto max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden">
+        <button onClick={onClose} className="absolute top-5 right-5 sm:top-6 sm:right-6 text-zinc-400 hover:text-white z-10">
           <X size={20} />
         </button>
 
+        <div className="flex-1 min-h-0 overflow-y-auto p-5 sm:p-8 pb-4 sm:pb-6">
         <h2 className="text-2xl sm:text-3xl font-semibold mb-6 sm:mb-8 pr-8">Profile &amp; Goals</h2>
 
         <div className="mb-6">
@@ -173,7 +219,7 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
           <h3 className="text-lg font-medium mb-4">Goals</h3>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 sm:mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 sm:mb-8 overflow-visible">
           <div>
             <label className="block text-sm text-zinc-400 mb-2">Target Weight (lbs)</label>
             <input
@@ -193,16 +239,18 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
               className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
             />
           </div>
-          <div className="relative">
+          <div>
             <label className="block text-sm text-zinc-400 mb-2 flex items-center gap-x-1">
               Target FFMI
               <button
+                ref={ffmiInfoRef}
                 type="button"
-                onMouseEnter={() => setShowFfmiTooltip(true)}
-                onMouseLeave={() => setShowFfmiTooltip(false)}
+                onMouseEnter={() => { if (!isCoarsePointer) setShowFfmiTooltip(true) }}
+                onMouseLeave={() => { if (!isCoarsePointer) setShowFfmiTooltip(false) }}
                 onClick={() => setShowFfmiTooltip((v) => !v)}
                 className="text-emerald-400 hover:text-emerald-300"
                 aria-label="FFMI category info"
+                aria-expanded={showFfmiTooltip}
               >
                 <Info size={14} />
               </button>
@@ -214,29 +262,11 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
               onChange={(e) => setFormData({ ...formData, target_ffmi: parseFloat(e.target.value) || 17.5 })}
               className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
             />
-
-            {showFfmiTooltip && (
-              <div className="absolute top-full mt-2 left-0 right-0 sm:right-auto z-50 sm:w-72 bg-zinc-800 border border-zinc-700 rounded-2xl p-4 text-sm shadow-xl">
-                <div className="font-medium mb-3 text-white">FFMI Categories</div>
-                <div className="space-y-1.5 text-xs">
-                  {ffmiCategories.map((cat, index) => (
-                    <div key={index} className="flex justify-between">
-                      <span className={cat.color}>{cat.range}</span>
-                      <span className="text-zinc-400">{cat.label}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-3 pt-3 border-t border-zinc-700 text-[10px] text-zinc-500">
-                  {formData.gender
-                    ? `Showing categories for ${formData.gender}s`
-                    : 'Select gender to see specific ranges'}
-                </div>
-              </div>
-            )}
           </div>
         </div>
+        </div>
 
-        <div className="flex gap-3">
+        <div className="flex gap-3 p-5 sm:px-8 sm:pb-8 pt-0 shrink-0">
           <button
             onClick={onClose}
             className="flex-1 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-white font-medium transition-colors"
@@ -252,6 +282,38 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
           </button>
         </div>
       </div>
+
+      {showFfmiTooltip && tooltipStyle && createPortal(
+        <div
+          ref={ffmiTooltipRef}
+          className="fixed z-[100] bg-zinc-800 border border-zinc-700 rounded-2xl p-4 text-sm shadow-xl pointer-events-none"
+          style={{ top: tooltipStyle.top, left: tooltipStyle.left, width: tooltipStyle.width }}
+          role="tooltip"
+        >
+          <div className="font-medium mb-3 text-white">FFMI Categories</div>
+          <div className="space-y-2 text-xs">
+            {ffmiCategories.map((cat, index) => (
+              <div
+                key={index}
+                className={formData.gender ? 'flex justify-between gap-3' : 'space-y-0.5'}
+              >
+                <span className={`${cat.color} leading-snug ${formData.gender ? '' : 'block'}`}>
+                  {cat.range}
+                </span>
+                <span className={`text-zinc-400 ${formData.gender ? 'shrink-0 text-right' : 'block'}`}>
+                  {cat.label}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 pt-3 border-t border-zinc-700 text-[10px] text-zinc-500 leading-relaxed">
+            {formData.gender
+              ? `Showing categories for ${formData.gender}s`
+              : 'Select gender to see specific ranges'}
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   )
 }
