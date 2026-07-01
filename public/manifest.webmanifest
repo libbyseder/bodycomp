@@ -1,7 +1,7 @@
 {
   "name": "BodyTrend",
   "short_name": "BodyTrend",
-  "description": "Track your body composition trends.",
+  "description": "Track Body Composition Trends.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

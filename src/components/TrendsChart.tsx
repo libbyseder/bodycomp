@@ -323,7 +323,7 @@ export default function TrendsChart({ measurements, profile }: TrendsChartProps)
               <button
                 key={p}
                 onClick={() => { setPeriod(p); setOffset(0) }}
-                className={`shrink-0 px-3 sm:px-4 py-1.5 rounded-2xl text-sm whitespace-nowrap ${period === p ? 'bg-emerald-600 text-white' : 'bg-zinc-800 hover:bg-zinc-700'}`}
+                className={`shrink-0 px-3 sm:px-4 py-1.5 rounded-2xl text-sm whitespace-nowrap ${period === p ? 'bg-cyan-500 text-white' : 'bg-zinc-800 hover:bg-zinc-700'}`}
               >
                 {p[0].toUpperCase() + p.slice(1)}
               </button>

@@ -139,7 +139,7 @@ export default function QuickLogModal({ isOpen, onClose, refetch }: QuickLogModa
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors disabled:opacity-50"
+              className="flex-1 py-3 rounded-2xl bg-cyan-500 hover:bg-cyan-600 text-white font-medium transition-colors disabled:opacity-50"
             >
               {isSubmitting ? 'Saving...' : 'Save Measurement'}
             </button>

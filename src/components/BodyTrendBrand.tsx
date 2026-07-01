@@ -25,7 +25,7 @@ export default function BodyTrendBrand({
           BodyTrend
         </span>
         <span className="text-cyan-400 text-[10px] sm:text-xs lg:text-sm block -mt-0.5 sm:-mt-1 font-medium">
-          Track your body composition trends
+          Track Body Composition Trends
         </span>
       </div>
     </div>

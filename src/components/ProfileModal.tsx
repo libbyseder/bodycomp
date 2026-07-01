@@ -294,7 +294,7 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
           <button
             onClick={handleSave}
             disabled={loading}
-            className="flex-1 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors disabled:opacity-50"
+            className="flex-1 py-3 rounded-2xl bg-cyan-500 hover:bg-cyan-600 text-white font-medium transition-colors disabled:opacity-50"
           >
             {loading ? 'Saving...' : 'Save Changes'}
           </button>

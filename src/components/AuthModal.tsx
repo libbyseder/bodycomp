@@ -92,7 +92,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-800 disabled:cursor-not-allowed transition-colors text-white font-medium py-3.5 rounded-2xl mt-2"
+            className="w-full bg-cyan-500 hover:bg-cyan-600 disabled:bg-cyan-800 disabled:cursor-not-allowed transition-colors text-white font-medium py-3.5 rounded-2xl mt-2"
           >
             {loading 
               ? 'Please wait...' 

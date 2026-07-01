@@ -87,7 +87,7 @@ export default function WithingsSync({ refetch, fullWidth = false }: WithingsSyn
       <button
         onClick={() => runSync(false)}
         disabled={isSyncing}
-        className={`flex items-center justify-center gap-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-l-2xl text-sm transition-colors ${fullWidth ? 'flex-1' : ''}`}
+        className={`flex items-center justify-center gap-x-2 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 disabled:opacity-50 rounded-l-2xl text-sm transition-colors ${fullWidth ? 'flex-1' : ''}`}
       >
         <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
         {isSyncing ? 'Syncing...' : 'Sync Now'}
@@ -96,7 +96,7 @@ export default function WithingsSync({ refetch, fullWidth = false }: WithingsSyn
       <button
         onClick={() => setShowAdvanced((open) => !open)}
         disabled={isSyncing}
-        className={`flex items-center justify-center gap-x-1 px-3 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 rounded-r-2xl text-sm border-l border-emerald-600 transition-colors ${fullWidth ? 'shrink-0' : ''}`}
+        className={`flex items-center justify-center gap-x-1 px-3 py-2 bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 rounded-r-2xl text-sm border-l border-cyan-500 transition-colors ${fullWidth ? 'shrink-0' : ''}`}
         aria-expanded={showAdvanced}
         aria-haspopup="menu"
       >

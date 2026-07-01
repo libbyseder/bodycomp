@@ -122,7 +122,7 @@ function Dashboard() {
           <BodyTrendBrand className="mb-8 justify-center" />
           <button
             onClick={() => setShowAuthModal(true)}
-            className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 rounded-2xl font-medium"
+            className="px-8 py-3 bg-cyan-500 hover:bg-cyan-600 rounded-2xl font-medium"
           >
             Get Started
           </button>
@@ -150,7 +150,7 @@ function Dashboard() {
           </div>
           <button
             onClick={() => setShowQuickLog(true)}
-            className="flex items-center justify-center gap-x-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 rounded-2xl font-medium transition-colors w-full sm:w-auto shrink-0"
+            className="flex items-center justify-center gap-x-2 px-5 py-3 bg-cyan-500 hover:bg-cyan-600 rounded-2xl font-medium transition-colors w-full sm:w-auto shrink-0"
           >
             <Plus size={18} /> Quick Log
           </button>

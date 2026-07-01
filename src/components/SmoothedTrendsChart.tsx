@@ -424,7 +424,7 @@ export default function SmoothedTrendsChart({
                 onClick={() => setPeriod(value)}
                 className={`px-3 sm:px-4 py-1.5 rounded-2xl text-sm whitespace-nowrap transition-colors ${
                   period === value
-                    ? 'bg-emerald-600 text-white'
+                    ? 'bg-cyan-500 text-white'
                     : 'bg-zinc-800 hover:bg-zinc-700'
                 }`}
               >
