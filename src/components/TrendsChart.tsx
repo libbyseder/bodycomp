@@ -14,6 +14,7 @@ import { Line } from 'react-chartjs-2'
 import type { Measurement } from '../types'
 import type { Profile } from '../types'
 import { Settings } from 'lucide-react'
+import { goalLegendLabels } from '../lib/chartLegend'
 
 ChartJS.register(
   CategoryScale,
@@ -189,27 +190,30 @@ export default function TrendsChart({ measurements, profile }: TrendsChartProps)
         label: 'Weight Goal',
         data: Array(labels.length).fill(profile.target_weight),
         borderColor: '#10b981',
-        borderDash: [5, 5],
+        borderDash: [6, 4],
         borderWidth: 2,
         pointRadius: 0,
+        pointStyle: 'circle',
         yAxisID: 'y',
       },
       visibility.bfGoal && profile?.target_body_fat != null && {
         label: 'BF% Goal',
         data: Array(labels.length).fill(profile.target_body_fat),
         borderColor: '#f59e0b',
-        borderDash: [5, 5],
+        borderDash: [6, 4],
         borderWidth: 2,
         pointRadius: 0,
+        pointStyle: 'circle',
         yAxisID: 'y1',
       },
       visibility.ffmiGoal && profile?.target_ffmi != null && {
         label: 'FFMI Goal',
         data: Array(labels.length).fill(profile.target_ffmi),
         borderColor: '#3b82f6',
-        borderDash: [5, 5],
+        borderDash: [6, 4],
         borderWidth: 2,
         pointRadius: 0,
+        pointStyle: 'circle',
         yAxisID: 'y2',
       },
     ].filter(Boolean) as any[],
@@ -226,6 +230,7 @@ export default function TrendsChart({ measurements, profile }: TrendsChartProps)
           usePointStyle: true,
           boxWidth: isMobile ? 8 : 12,
           font: { size: isMobile ? 10 : 12 },
+          generateLabels: goalLegendLabels,
         },
       },
       tooltip: {

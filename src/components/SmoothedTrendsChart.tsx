@@ -21,6 +21,7 @@ import {
   TREND_PERIODS,
   type TrendPeriod,
 } from '../lib/movingAverage'
+import { goalLegendLabels } from '../lib/chartLegend'
 
 ChartJS.register(
   CategoryScale,
@@ -249,6 +250,7 @@ export default function SmoothedTrendsChart({
           borderDash: [6, 4],
           borderWidth: 2,
           pointRadius: 0,
+          pointStyle: 'circle',
           yAxisID: 'y',
         },
       visibility.bodyFatGoal &&
@@ -259,6 +261,7 @@ export default function SmoothedTrendsChart({
           borderDash: [6, 4],
           borderWidth: 2,
           pointRadius: 0,
+          pointStyle: 'circle',
           yAxisID: 'y1',
         },
       visibility.ffmiGoal &&
@@ -269,6 +272,7 @@ export default function SmoothedTrendsChart({
           borderDash: [6, 4],
           borderWidth: 2,
           pointRadius: 0,
+          pointStyle: 'circle',
           yAxisID: 'y2',
         },
     ].filter(Boolean),
@@ -289,6 +293,7 @@ export default function SmoothedTrendsChart({
           usePointStyle: true,
           boxWidth: isMobile ? 8 : 12,
           font: { size: isMobile ? 10 : 12 },
+          generateLabels: goalLegendLabels,
         },
       },
       tooltip: {
@@ -318,11 +323,7 @@ export default function SmoothedTrendsChart({
     scales: {
       x: {
         grid: { color: '#27272a' },
-        ticks: {
-          color: '#71717a',
-          maxTicksLimit: isMobile ? 5 : 8,
-          font: { size: isMobile ? 10 : 11 },
-        },
+        ticks: { display: false },
       },
       y: {
         position: 'left' as const,
