@@ -8,6 +8,7 @@ import QuickLogModal from './components/QuickLogModal'
 import ProfileModal from './components/ProfileModal'
 import DashboardWidgets from './components/DashboardWidgets'
 import TrendsChart from './components/TrendsChart'
+import SmoothedTrendsChart from './components/SmoothedTrendsChart'
 import ImportCSV from './components/ImportCSV'
 import DashboardHeader from './components/DashboardHeader'
 import InstallPrompt from './components/InstallPrompt'
@@ -156,6 +157,7 @@ function Dashboard() {
         </div>
 
         <DashboardWidgets measurements={measurements} profile={profile} />
+        <SmoothedTrendsChart measurements={measurements} profile={profile} />
         <TrendsChart measurements={measurements} profile={profile} />
 
         <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8">
