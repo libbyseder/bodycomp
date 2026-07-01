@@ -1,6 +1,6 @@
 {
-  "name": "RecompTrack",
-  "short_name": "RecompTrack",
+  "name": "GOALS (Body Comp)",
+  "short_name": "GOALS (Body Comp)",
   "description": "Track body composition, FFMI, and recomp progress.",
   "start_url": "/",
   "scope": "/",

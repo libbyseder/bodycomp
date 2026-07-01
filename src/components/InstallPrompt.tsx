@@ -35,7 +35,7 @@ export default function InstallPrompt() {
       <div className="bg-zinc-900 border border-emerald-600/40 rounded-2xl p-4 shadow-xl">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div>
-            <p className="font-semibold text-white">Install RecompTrack</p>
+            <p className="font-semibold text-white">Install GOALS (Body Comp)</p>
             <p className="text-sm text-zinc-400 mt-1">
               Add to your Home Screen for a full-screen app experience.
             </p>
