@@ -157,8 +157,8 @@ function Dashboard() {
         </div>
 
         <DashboardWidgets measurements={measurements} profile={profile} />
-        <SmoothedTrendsChart measurements={measurements} profile={profile} />
         <TrendsChart measurements={measurements} profile={profile} />
+        <SmoothedTrendsChart measurements={measurements} profile={profile} />
 
         <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8">
           <div className="flex flex-col gap-4 mb-6">

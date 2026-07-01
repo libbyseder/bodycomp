@@ -15,8 +15,11 @@ import type { Measurement, Profile } from '../types'
 import { calculateFFMI } from '../lib/calculateFFMI'
 import {
   computeSimpleMovingAverage,
-  getAverageWindowLabel,
-  type AverageWindow,
+  filterPointsByPeriod,
+  getSmoothingWindow,
+  getTrendPeriodLabel,
+  TREND_PERIODS,
+  type TrendPeriod,
 } from '../lib/movingAverage'
 
 ChartJS.register(
@@ -54,8 +57,6 @@ interface VisibilitySettings {
   ffmiGoal: boolean
 }
 
-const AVERAGE_WINDOWS: AverageWindow[] = [7, 30, 90, 'all']
-
 function useIsMobile(breakpoint = 640) {
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== 'undefined' && window.innerWidth < breakpoint
@@ -78,31 +79,38 @@ function buildDailyPoints(
 ): DailyPoint[] {
   return [...measurements]
     .sort((a, b) => a.date.localeCompare(b.date))
-    .map((measurement) => {
-      const ffmi =
+    .map((measurement) => ({
+      date: measurement.date,
+      weight: measurement.weight,
+      body_fat: measurement.body_fat,
+      ffmi:
         heightInches != null
           ? calculateFFMI(measurement.weight, measurement.body_fat, heightInches)
-          : null
+          : null,
+    }))
+}
 
-      return {
-        date: measurement.date,
-        weight: measurement.weight,
-        body_fat: measurement.body_fat,
-        ffmi,
-      }
-    })
+function latestTrendValue(values: (number | null)[]): number | null {
+  return [...values].reverse().find((value) => value != null) ?? null
+}
+
+function periodDelta(values: (number | null)[]): number | null {
+  const first = values.find((value) => value != null) ?? null
+  const last = latestTrendValue(values)
+  if (first == null || last == null) return null
+  return parseFloat((last - first).toFixed(2))
 }
 
 export default function SmoothedTrendsChart({
   measurements,
   profile,
 }: SmoothedTrendsChartProps) {
-  const [averageWindow, setAverageWindow] = useState<AverageWindow>(7)
+  const [period, setPeriod] = useState<TrendPeriod>(7)
   const [showSettings, setShowSettings] = useState(false)
   const isMobile = useIsMobile()
 
   const [visibility, setVisibility] = useState<VisibilitySettings>({
-    rawWeight: true,
+    rawWeight: false,
     weightTrend: true,
     rawBodyFat: false,
     bodyFatTrend: true,
@@ -113,9 +121,14 @@ export default function SmoothedTrendsChart({
     ffmiGoal: true,
   })
 
-  const dailyPoints = useMemo(
+  const allDailyPoints = useMemo(
     () => buildDailyPoints(measurements, profile?.height_inches),
     [measurements, profile?.height_inches]
+  )
+
+  const periodPoints = useMemo(
+    () => filterPointsByPeriod(allDailyPoints, period),
+    [allDailyPoints, period]
   )
 
   const {
@@ -123,46 +136,46 @@ export default function SmoothedTrendsChart({
     bodyFatTrend,
     ffmiTrend,
     latestWeightTrend,
+    latestBodyFatTrend,
+    latestFfmiTrend,
     weightDelta,
+    bodyFatDelta,
+    ffmiDelta,
   } = useMemo(() => {
-    const weights = dailyPoints.map((point) => point.weight)
-    const bodyFats = dailyPoints.map((point) => point.body_fat)
-    const ffmis = dailyPoints.map((point) => point.ffmi)
+    const smoothingWindow = getSmoothingWindow(periodPoints.length)
+    const weights = periodPoints.map((point) => point.weight)
+    const bodyFats = periodPoints.map((point) => point.body_fat)
+    const ffmis = periodPoints.map((point) => point.ffmi)
 
-    const nextWeightTrend = computeSimpleMovingAverage(weights, averageWindow)
-    const nextBodyFatTrend = computeSimpleMovingAverage(bodyFats, averageWindow)
-    const nextFfmiTrend = computeSimpleMovingAverage(ffmis, averageWindow)
-
-    const latestTrend = [...nextWeightTrend]
-      .reverse()
-      .find((value) => value != null) ?? null
-
-    const firstTrend = nextWeightTrend.find((value) => value != null) ?? null
-    const delta =
-      latestTrend != null && firstTrend != null
-        ? parseFloat((latestTrend - firstTrend).toFixed(1))
-        : null
+    const nextWeightTrend = computeSimpleMovingAverage(weights, smoothingWindow)
+    const nextBodyFatTrend = computeSimpleMovingAverage(bodyFats, smoothingWindow)
+    const nextFfmiTrend = computeSimpleMovingAverage(ffmis, smoothingWindow)
 
     return {
       weightTrend: nextWeightTrend,
       bodyFatTrend: nextBodyFatTrend,
       ffmiTrend: nextFfmiTrend,
-      latestWeightTrend: latestTrend,
-      weightDelta: delta,
+      latestWeightTrend: latestTrendValue(nextWeightTrend),
+      latestBodyFatTrend: latestTrendValue(nextBodyFatTrend),
+      latestFfmiTrend: latestTrendValue(nextFfmiTrend),
+      weightDelta: periodDelta(nextWeightTrend),
+      bodyFatDelta: periodDelta(nextBodyFatTrend),
+      ffmiDelta: periodDelta(nextFfmiTrend),
     }
-  }, [dailyPoints, averageWindow])
+  }, [periodPoints])
 
-  const labels = dailyPoints.map((point) => point.date)
+  const labels = periodPoints.map((point) => point.date)
   const weightGoal = profile?.target_weight ?? null
   const bodyFatGoal = profile?.target_body_fat ?? null
   const ffmiGoal = profile?.target_ffmi ?? null
+  const smoothingWindow = getSmoothingWindow(periodPoints.length)
 
   const chartData = {
     labels,
     datasets: [
       visibility.rawWeight && {
         label: 'Daily Weight',
-        data: dailyPoints.map((point) => point.weight),
+        data: periodPoints.map((point) => point.weight),
         borderColor: 'rgba(16, 185, 129, 0.35)',
         backgroundColor: 'rgba(16, 185, 129, 0.12)',
         borderWidth: 1.5,
@@ -172,21 +185,19 @@ export default function SmoothedTrendsChart({
         yAxisID: 'y',
       },
       visibility.weightTrend && {
-        label: `${getAverageWindowLabel(averageWindow)} (Weight)`,
+        label: `Weight Trend (${smoothingWindow}-Day Avg)`,
         data: weightTrend,
         borderColor: '#10b981',
-        backgroundColor: 'rgba(16, 185, 129, 0.08)',
         borderWidth: 3,
         pointRadius: 0,
         pointHoverRadius: 4,
         tension: 0.35,
-        fill: false,
         spanGaps: true,
         yAxisID: 'y',
       },
       visibility.rawBodyFat && {
         label: 'Daily Body Fat %',
-        data: dailyPoints.map((point) => point.body_fat),
+        data: periodPoints.map((point) => point.body_fat),
         borderColor: 'rgba(245, 158, 11, 0.35)',
         backgroundColor: 'rgba(245, 158, 11, 0.12)',
         borderWidth: 1.5,
@@ -197,7 +208,7 @@ export default function SmoothedTrendsChart({
         yAxisID: 'y1',
       },
       visibility.bodyFatTrend && {
-        label: `${getAverageWindowLabel(averageWindow)} (Body Fat)`,
+        label: `Body Fat Trend (${smoothingWindow}-Day Avg)`,
         data: bodyFatTrend,
         borderColor: '#f59e0b',
         borderWidth: 2.5,
@@ -209,7 +220,7 @@ export default function SmoothedTrendsChart({
       },
       visibility.rawFfmi && {
         label: 'Daily FFMI',
-        data: dailyPoints.map((point) => point.ffmi),
+        data: periodPoints.map((point) => point.ffmi),
         borderColor: 'rgba(59, 130, 246, 0.35)',
         backgroundColor: 'rgba(59, 130, 246, 0.12)',
         borderWidth: 1.5,
@@ -220,7 +231,7 @@ export default function SmoothedTrendsChart({
         yAxisID: 'y2',
       },
       visibility.ffmiTrend && {
-        label: `${getAverageWindowLabel(averageWindow)} (FFMI)`,
+        label: `FFMI Trend (${smoothingWindow}-Day Avg)`,
         data: ffmiTrend,
         borderColor: '#3b82f6',
         borderWidth: 2.5,
@@ -315,6 +326,8 @@ export default function SmoothedTrendsChart({
       },
       y: {
         position: 'left' as const,
+        display:
+          visibility.rawWeight || visibility.weightTrend || visibility.weightGoal,
         title: {
           display: !isMobile,
           text: 'Weight (lbs)',
@@ -368,32 +381,53 @@ export default function SmoothedTrendsChart({
   const toggle = (key: keyof VisibilitySettings) =>
     setVisibility((current) => ({ ...current, [key]: !current[key] }))
 
-  if (dailyPoints.length === 0) return null
+  const allDataOn =
+    visibility.rawWeight && visibility.rawBodyFat && visibility.rawFfmi
+  const allGoalsOn =
+    visibility.weightGoal && visibility.bodyFatGoal && visibility.ffmiGoal
+
+  const setAllData = (enabled: boolean) =>
+    setVisibility((current) => ({
+      ...current,
+      rawWeight: enabled,
+      rawBodyFat: enabled,
+      rawFfmi: enabled,
+    }))
+
+  const setAllGoals = (enabled: boolean) =>
+    setVisibility((current) => ({
+      ...current,
+      weightGoal: enabled,
+      bodyFatGoal: enabled,
+      ffmiGoal: enabled,
+    }))
+
+  if (allDailyPoints.length === 0) return null
 
   return (
     <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8">
       <div className="flex flex-col gap-4 mb-4 sm:mb-6">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
           <div>
-            <h2 className="text-xl sm:text-2xl font-semibold">Smoothed Weight Trend</h2>
+            <h2 className="text-xl sm:text-2xl font-semibold">Smoothed Trends</h2>
             <p className="text-zinc-400 text-sm mt-1">
-              Happy Scale-style moving averages to smooth daily fluctuations
+              Moving averages for weight, body fat, and FFMI — {getTrendPeriodLabel(period)}
             </p>
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {AVERAGE_WINDOWS.map((window) => (
+            {TREND_PERIODS.map((value) => (
               <button
-                key={window}
+                key={value}
                 type="button"
-                onClick={() => setAverageWindow(window)}
+                onClick={() => setPeriod(value)}
                 className={`px-3 sm:px-4 py-1.5 rounded-2xl text-sm whitespace-nowrap transition-colors ${
-                  averageWindow === window
+                  period === value
                     ? 'bg-emerald-600 text-white'
                     : 'bg-zinc-800 hover:bg-zinc-700'
                 }`}
               >
-                {window === 'all' ? 'All-Time' : `${window}-Day`}
+                {value === 'all' ? 'All-Time' : `${value}-Day`}
               </button>
             ))}
           </div>
@@ -401,46 +435,65 @@ export default function SmoothedTrendsChart({
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="bg-zinc-800/70 border border-zinc-700 rounded-2xl px-4 py-3">
-            <p className="text-xs text-zinc-400 uppercase tracking-wide">Trend Weight</p>
+            <p className="text-xs text-zinc-400 uppercase tracking-wide">Weight Trend</p>
             <p className="text-2xl font-semibold text-emerald-400 mt-1">
               {latestWeightTrend != null ? `${latestWeightTrend} lbs` : '—'}
             </p>
-            <p className="text-xs text-zinc-500 mt-1">{getAverageWindowLabel(averageWindow)}</p>
+            <p className="text-xs text-zinc-500 mt-1">
+              {weightDelta != null
+                ? `${weightDelta > 0 ? '+' : ''}${weightDelta} lbs in period`
+                : 'No change in period'}
+            </p>
           </div>
 
           <div className="bg-zinc-800/70 border border-zinc-700 rounded-2xl px-4 py-3">
-            <p className="text-xs text-zinc-400 uppercase tracking-wide">Vs Weight Goal</p>
-            <p className="text-2xl font-semibold text-white mt-1">
-              {latestWeightTrend != null && weightGoal != null
-                ? `${parseFloat((latestWeightTrend - weightGoal).toFixed(1))} lbs`
-                : '—'}
+            <p className="text-xs text-zinc-400 uppercase tracking-wide">Body Fat Trend</p>
+            <p className="text-2xl font-semibold text-orange-400 mt-1">
+              {latestBodyFatTrend != null ? `${latestBodyFatTrend}%` : '—'}
             </p>
             <p className="text-xs text-zinc-500 mt-1">
-              {weightGoal != null ? `Goal: ${weightGoal} lbs` : 'Set a weight goal in Profile'}
+              {bodyFatDelta != null
+                ? `${bodyFatDelta > 0 ? '+' : ''}${bodyFatDelta}% in period`
+                : 'No change in period'}
             </p>
           </div>
 
           <div className="bg-zinc-800/70 border border-zinc-700 rounded-2xl px-4 py-3">
-            <p className="text-xs text-zinc-400 uppercase tracking-wide">Trend Change</p>
-            <p
-              className={`text-2xl font-semibold mt-1 ${
-                weightDelta == null
-                  ? 'text-zinc-400'
-                  : weightDelta <= 0
-                    ? 'text-emerald-400'
-                    : 'text-orange-400'
-              }`}
-            >
-              {weightDelta != null
-                ? `${weightDelta > 0 ? '+' : ''}${weightDelta} lbs`
-                : '—'}
+            <p className="text-xs text-zinc-400 uppercase tracking-wide">FFMI Trend</p>
+            <p className="text-2xl font-semibold text-blue-400 mt-1">
+              {latestFfmiTrend != null ? latestFfmiTrend : '—'}
             </p>
-            <p className="text-xs text-zinc-500 mt-1">Since first logged entry</p>
+            <p className="text-xs text-zinc-500 mt-1">
+              {ffmiDelta != null
+                ? `${ffmiDelta > 0 ? '+' : ''}${ffmiDelta} in period`
+                : 'No change in period'}
+            </p>
           </div>
         </div>
       </div>
 
-      <div className="flex justify-end mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex flex-wrap gap-4 text-sm">
+          <label className="flex items-center gap-x-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={allDataOn}
+              onChange={(e) => setAllData(e.target.checked)}
+              className="accent-emerald-500"
+            />
+            All daily data
+          </label>
+          <label className="flex items-center gap-x-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={allGoalsOn}
+              onChange={(e) => setAllGoals(e.target.checked)}
+              className="accent-emerald-500"
+            />
+            All goals
+          </label>
+        </div>
+
         <button
           type="button"
           onClick={() => setShowSettings((open) => !open)}
@@ -457,13 +510,13 @@ export default function SmoothedTrendsChart({
             {(
               [
                 ['rawWeight', 'Daily weight'],
-                ['weightTrend', 'Weight trend line'],
+                ['weightTrend', 'Weight trend'],
                 ['weightGoal', 'Weight goal'],
                 ['rawBodyFat', 'Daily body fat'],
-                ['bodyFatTrend', 'Body fat trend line'],
+                ['bodyFatTrend', 'Body fat trend'],
                 ['bodyFatGoal', 'Body fat goal'],
                 ['rawFfmi', 'Daily FFMI'],
-                ['ffmiTrend', 'FFMI trend line'],
+                ['ffmiTrend', 'FFMI trend'],
                 ['ffmiGoal', 'FFMI goal'],
               ] as const
             ).map(([key, label]) => (
@@ -482,7 +535,13 @@ export default function SmoothedTrendsChart({
       )}
 
       <div className="h-[280px] sm:h-[360px] lg:h-[440px]">
-        <Line data={chartData as never} options={options} />
+        {periodPoints.length > 0 ? (
+          <Line data={chartData as never} options={options} />
+        ) : (
+          <div className="h-full flex items-center justify-center text-zinc-400">
+            No data in this period
+          </div>
+        )}
       </div>
     </div>
   )

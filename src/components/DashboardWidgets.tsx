@@ -1,4 +1,9 @@
 import type { Measurement, Profile } from '../types'
+import {
+  progressTowardHigherGoal,
+  progressTowardLowerGoal,
+  progressTowardWeightGoal,
+} from '../lib/goalProgress'
 
 interface DashboardWidgetsProps {
   measurements: Measurement[]
@@ -28,15 +33,15 @@ export default function DashboardWidgets({ measurements, profile }: DashboardWid
   const ffmiGoal = profile?.target_ffmi
 
   const weightProgress = weightGoal
-    ? currentWeight <= weightGoal ? 100 : Math.max(0, Math.min(100, 100 - ((currentWeight - weightGoal) / currentWeight) * 100))
+    ? progressTowardWeightGoal(currentWeight, weightGoal)
     : 0
 
   const bfProgress = bfGoal
-    ? currentBf <= bfGoal ? 100 : Math.max(0, Math.min(100, 100 - ((currentBf - bfGoal) / currentBf) * 100))
+    ? progressTowardLowerGoal(currentBf, bfGoal)
     : 0
 
   const ffmiProgress = ffmiGoal && currentFfmi
-    ? currentFfmi >= ffmiGoal ? 100 : Math.max(0, Math.min(100, (currentFfmi / ffmiGoal) * 100))
+    ? progressTowardHigherGoal(currentFfmi, ffmiGoal)
     : 0
 
   return (
