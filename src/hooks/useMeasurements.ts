@@ -23,14 +23,22 @@ export function useMeasurements() {
   const [loading, setLoading] = useState(true)
 
   const fetchMeasurements = async () => {
-    if (!user) return
+    const userId = user?.id
+    if (!userId) {
+      setMeasurements([])
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
 
     const { data, error } = await supabase
       .from('measurements')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .order('date', { ascending: false })
+
+    if (user?.id !== userId) return
 
     if (!error && data) {
       setMeasurements(data)
@@ -68,7 +76,37 @@ export function useMeasurements() {
   }
 
   useEffect(() => {
-    fetchMeasurements()
+    const userId = user?.id
+
+    if (!userId) {
+      setMeasurements([])
+      setLoading(false)
+      return
+    }
+
+    setMeasurements([])
+    setLoading(true)
+
+    let cancelled = false
+
+    ;(async () => {
+      const { data, error } = await supabase
+        .from('measurements')
+        .select('*')
+        .eq('user_id', userId)
+        .order('date', { ascending: false })
+
+      if (cancelled) return
+
+      if (!error && data) {
+        setMeasurements(data)
+      }
+      setLoading(false)
+    })()
+
+    return () => {
+      cancelled = true
+    }
   }, [user?.id])
 
   return {

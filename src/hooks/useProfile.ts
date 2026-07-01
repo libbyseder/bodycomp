@@ -20,7 +20,8 @@ export function useProfile() {
   const [loading, setLoading] = useState(true)
 
   const fetchProfile = useCallback(async () => {
-    if (!user) {
+    const userId = user?.id
+    if (!userId) {
       setProfile(null)
       setLoading(false)
       return
@@ -31,12 +32,16 @@ export function useProfile() {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', user.id)           // ← Changed from user_id to id
+      .eq('id', userId)
       .single()
+
+    if (user?.id !== userId) return
 
     if (!error) {
       setProfile(data)
-    } else if (error.code !== 'PGRST116') {
+    } else if (error.code === 'PGRST116') {
+      setProfile(null)
+    } else {
       console.error('Error fetching profile:', error)
     }
 
@@ -46,8 +51,43 @@ export function useProfile() {
   const refetchProfile = fetchProfile
 
   useEffect(() => {
-    fetchProfile()
-  }, [fetchProfile])
+    const userId = user?.id
+
+    if (!userId) {
+      setProfile(null)
+      setLoading(false)
+      return
+    }
+
+    setProfile(null)
+    setLoading(true)
+
+    let cancelled = false
+
+    ;(async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
+
+      if (cancelled) return
+
+      if (!error) {
+        setProfile(data)
+      } else if (error.code === 'PGRST116') {
+        setProfile(null)
+      } else {
+        console.error('Error fetching profile:', error)
+      }
+
+      setLoading(false)
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [user?.id])
 
   return {
     profile,

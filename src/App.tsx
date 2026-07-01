@@ -28,6 +28,11 @@ function Dashboard() {
   const [showQuickLog, setShowQuickLog] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
 
+  useEffect(() => {
+    setShowProfile(false)
+    setShowQuickLog(false)
+  }, [user?.id])
+
   const saveWithingsTokens = useCallback(async (
     access_token: string,
     refresh_token: string,
@@ -150,7 +155,7 @@ function Dashboard() {
           </button>
         </div>
 
-        <DashboardWidgets measurements={measurements} />
+        <DashboardWidgets measurements={measurements} profile={profile} />
         <TrendsChart measurements={measurements} profile={profile} />
 
         <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8">

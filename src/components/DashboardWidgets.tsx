@@ -1,12 +1,11 @@
-import { useProfile } from '../hooks/useProfile'
-import type { Measurement } from '../types'
+import type { Measurement, Profile } from '../types'
 
 interface DashboardWidgetsProps {
   measurements: Measurement[]
+  profile: Profile | null
 }
 
-export default function DashboardWidgets({ measurements }: DashboardWidgetsProps) {
-  const { profile } = useProfile()
+export default function DashboardWidgets({ measurements, profile }: DashboardWidgetsProps) {
 
   if (measurements.length === 0) return null
 

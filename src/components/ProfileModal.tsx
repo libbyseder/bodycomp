@@ -1,8 +1,18 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import { X, Info } from 'lucide-react'
 import toast from 'react-hot-toast'
+
+const DEFAULT_FORM_DATA = {
+  name: '',
+  height_inches: 63.5,
+  gender: null as 'male' | 'female' | null,
+  target_weight: 124,
+  target_body_fat: 23,
+  target_ffmi: 18,
+}
 
 interface ProfileModalProps {
   isOpen: boolean
@@ -11,14 +21,8 @@ interface ProfileModalProps {
 }
 
 export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalProps) {
-  const [formData, setFormData] = useState({
-    name: '',
-    height_inches: 63.5,
-    gender: null as "male" | "female" | null,
-    target_weight: 124,
-    target_body_fat: 23,
-    target_ffmi: 18,
-  })
+  const { user } = useAuth()
+  const [formData, setFormData] = useState(DEFAULT_FORM_DATA)
   const [showFfmiTooltip, setShowFfmiTooltip] = useState(false)
   const [tooltipStyle, setTooltipStyle] = useState<{ top: number; left: number; width: number } | null>(null)
   const [isCoarsePointer, setIsCoarsePointer] = useState(false)
@@ -67,31 +71,45 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
   }, [showFfmiTooltip, updateTooltipPosition, formData.gender])
 
   useEffect(() => {
-    if (isOpen) {
-      const loadProfile = async () => {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
-
-        const { data } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .single()
-
-        if (data) {
-          setFormData({
-            name: data.name || '',
-            height_inches: data.height_inches || 63.5,
-            gender: data.gender || null,
-            target_weight: data.target_weight || 124,
-            target_body_fat: data.target_body_fat || 23,
-            target_ffmi: data.target_ffmi || 18,
-          })
-        }
-      }
-      loadProfile()
+    if (!isOpen || !user) {
+      setFormData(DEFAULT_FORM_DATA)
+      return
     }
-  }, [isOpen])
+
+    const userId = user.id
+    setFormData(DEFAULT_FORM_DATA)
+
+    let cancelled = false
+
+    const loadProfile = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
+
+      if (cancelled) return
+
+      if (data) {
+        setFormData({
+          name: data.name || '',
+          height_inches: data.height_inches || 63.5,
+          gender: data.gender || null,
+          target_weight: data.target_weight || 124,
+          target_body_fat: data.target_body_fat || 23,
+          target_ffmi: data.target_ffmi || 18,
+        })
+      } else if (error?.code !== 'PGRST116') {
+        console.error('Error loading profile:', error)
+      }
+    }
+
+    void loadProfile()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen, user?.id])
 
   if (!isOpen) return null
 
