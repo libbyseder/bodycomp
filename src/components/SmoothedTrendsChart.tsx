@@ -63,6 +63,7 @@ interface VisibilitySettings {
   weightGoal: boolean
   bodyFatGoal: boolean
   ffmiGoal: boolean
+  normalizedFfmiGoal: boolean
 }
 
 function useIsMobile(breakpoint = 640) {
@@ -137,6 +138,7 @@ export default function SmoothedTrendsChart({
     weightGoal: true,
     bodyFatGoal: true,
     ffmiGoal: true,
+    normalizedFfmiGoal: true,
   })
 
   const allDailyPoints = useMemo(
@@ -194,6 +196,7 @@ export default function SmoothedTrendsChart({
   const weightGoal = profile?.target_weight ?? null
   const bodyFatGoal = profile?.target_body_fat ?? null
   const ffmiGoal = profile?.target_ffmi ?? null
+  const normalizedFfmiGoal = profile?.target_normalized_ffmi ?? null
 
   const chartData = {
     labels,
@@ -322,6 +325,17 @@ export default function SmoothedTrendsChart({
           pointStyle: 'circle',
           yAxisID: 'y2',
         },
+      visibility.normalizedFfmiGoal &&
+        normalizedFfmiGoal != null && {
+          label: 'Norm. FFMI Goal',
+          data: Array(labels.length).fill(normalizedFfmiGoal),
+          borderColor: '#a78bfa',
+          borderDash: [6, 4],
+          borderWidth: 2,
+          pointRadius: 0,
+          pointStyle: 'circle',
+          yAxisID: 'y2',
+        },
     ].filter(Boolean),
   }
 
@@ -413,7 +427,8 @@ export default function SmoothedTrendsChart({
           visibility.ffmiTrend ||
           visibility.rawNormalizedFfmi ||
           visibility.normalizedFfmiTrend ||
-          visibility.ffmiGoal,
+          visibility.ffmiGoal ||
+          visibility.normalizedFfmiGoal,
         title: {
           display: !isMobile,
           text: 'FFMI',
@@ -437,7 +452,10 @@ export default function SmoothedTrendsChart({
   const allDataOn =
     visibility.rawWeight && visibility.rawBodyFat && visibility.rawFfmi
   const allGoalsOn =
-    visibility.weightGoal && visibility.bodyFatGoal && visibility.ffmiGoal
+    visibility.weightGoal &&
+    visibility.bodyFatGoal &&
+    visibility.ffmiGoal &&
+    visibility.normalizedFfmiGoal
 
   const setAllData = (enabled: boolean) =>
     setVisibility((current) => ({
@@ -454,6 +472,7 @@ export default function SmoothedTrendsChart({
       weightGoal: enabled,
       bodyFatGoal: enabled,
       ffmiGoal: enabled,
+      normalizedFfmiGoal: enabled,
     }))
 
   if (allDailyPoints.length === 0) return null
@@ -592,6 +611,7 @@ export default function SmoothedTrendsChart({
                 ['rawNormalizedFfmi', 'Daily norm. FFMI'],
                 ['normalizedFfmiTrend', 'Norm. FFMI trend'],
                 ['ffmiGoal', 'FFMI goal'],
+                ['normalizedFfmiGoal', 'Norm. FFMI goal'],
               ] as const
             ).map(([key, label]) => (
               <label key={key} className="flex items-center gap-x-2 cursor-pointer">

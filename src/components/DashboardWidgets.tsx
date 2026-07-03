@@ -33,6 +33,7 @@ export default function DashboardWidgets({ measurements, profile }: DashboardWid
   const weightGoal = profile?.target_weight
   const bfGoal = profile?.target_body_fat ?? (profile as any)?.target_bf
   const ffmiGoal = profile?.target_ffmi
+  const normalizedFfmiGoal = profile?.target_normalized_ffmi
 
   const weightProgress = weightGoal
     ? progressTowardWeightGoal(currentWeight, weightGoal)
@@ -45,6 +46,11 @@ export default function DashboardWidgets({ measurements, profile }: DashboardWid
   const ffmiProgress = ffmiGoal && currentFfmi
     ? progressTowardHigherGoal(currentFfmi, ffmiGoal)
     : 0
+
+  const normalizedFfmiProgress =
+    normalizedFfmiGoal && currentNormalizedFfmi
+      ? progressTowardHigherGoal(currentNormalizedFfmi, normalizedFfmiGoal)
+      : 0
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
@@ -96,11 +102,26 @@ export default function DashboardWidgets({ measurements, profile }: DashboardWid
         </div>
         <div className="text-zinc-400 text-sm mb-1">score</div>
         {currentNormalizedFfmi != null && (
-          <p className="text-xs text-indigo-300/90 mb-3">
+          <p className="text-xs text-indigo-300/90 mb-1">
             Normalized {currentNormalizedFfmi}
           </p>
         )}
-        {currentNormalizedFfmi == null && <div className="mb-4" />}
+        {currentNormalizedFfmi == null && <div className="mb-1" />}
+        {normalizedFfmiGoal && currentNormalizedFfmi != null && (
+          <div className="mb-3">
+            <div className="flex justify-between text-xs text-zinc-400 mb-1">
+              <span>Norm. goal</span>
+              <span className="text-indigo-400">{Math.round(normalizedFfmiProgress)}% to goal</span>
+            </div>
+            <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-indigo-500 to-violet-400 rounded-full transition-all"
+                style={{ width: `${normalizedFfmiProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
+        {!(normalizedFfmiGoal && currentNormalizedFfmi != null) && <div className="mb-3" />}
         {ffmiGoal && currentFfmi && (
           <div>
             <div className="flex justify-between text-xs text-zinc-400 mb-1">

@@ -1,8 +1,8 @@
 import type { Measurement, Profile } from '../types'
-import { calculateFFMI } from './calculateFFMI'
+import { calculateFFMI, calculateNormalizedFFMI } from './calculateFFMI'
 import { computeSimpleMovingAverage, getSmoothingWindow } from './movingAverage'
 
-type GoalMetric = 'weight' | 'bodyFat' | 'ffmi'
+type GoalMetric = 'weight' | 'bodyFat' | 'ffmi' | 'normalizedFfmi'
 
 interface GoalPrediction {
   metric: GoalMetric
@@ -131,6 +131,32 @@ export function getGoalPredictions(
           days === 0
             ? 'FFMI goal reached at current trend'
             : `FFMI goal around ${formatDate(target)} at current trend`,
+      })
+    }
+  }
+
+  if (profile.target_normalized_ffmi && height) {
+    const points = sorted
+      .filter((m) => m.body_fat != null)
+      .map((m) => ({
+        date: m.date,
+        value: calculateNormalizedFFMI(m.weight, m.body_fat, height) ?? 0,
+      }))
+      .filter((p) => p.value > 0)
+    const days = estimateDaysToGoal(points, profile.target_normalized_ffmi, false)
+    if (days != null) {
+      const target = new Date()
+      target.setDate(target.getDate() + days)
+      predictions.push({
+        metric: 'normalizedFfmi',
+        label: 'Normalized FFMI',
+        onTrack:
+          days > 0 ||
+          (points[points.length - 1]?.value ?? 0) >= profile.target_normalized_ffmi - 0.1,
+        message:
+          days === 0
+            ? 'Normalized FFMI goal reached at current trend'
+            : `Normalized FFMI goal around ${formatDate(target)} at current trend`,
       })
     }
   }

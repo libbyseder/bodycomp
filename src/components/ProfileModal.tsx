@@ -12,6 +12,7 @@ const DEFAULT_FORM_DATA = {
   target_weight: 124,
   target_body_fat: 23,
   target_ffmi: 18,
+  target_normalized_ffmi: 18,
 }
 
 interface ProfileModalProps {
@@ -24,6 +25,7 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
   const { user } = useAuth()
   const [formData, setFormData] = useState(DEFAULT_FORM_DATA)
   const [showFfmiTooltip, setShowFfmiTooltip] = useState(false)
+  const [showNormalizedFfmiInfo, setShowNormalizedFfmiInfo] = useState(false)
   const [tooltipStyle, setTooltipStyle] = useState<{ top: number; left: number; width: number } | null>(null)
   const [isCoarsePointer, setIsCoarsePointer] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -98,6 +100,7 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
           target_weight: data.target_weight || 124,
           target_body_fat: data.target_body_fat || 23,
           target_ffmi: data.target_ffmi || 18,
+          target_normalized_ffmi: data.target_normalized_ffmi || 18,
         })
       } else if (error?.code !== 'PGRST116') {
         console.error('Error loading profile:', error)
@@ -133,6 +136,7 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
         target_weight: formData.target_weight,
         target_body_fat: formData.target_body_fat,
         target_ffmi: formData.target_ffmi,
+        target_normalized_ffmi: formData.target_normalized_ffmi,
       })
 
     setLoading(false)
@@ -237,7 +241,7 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
           <h3 className="text-lg font-medium mb-4">Goals</h3>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 sm:mb-8 overflow-visible">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 overflow-visible">
           <div>
             <label className="block text-sm text-zinc-400 mb-2">Target Weight (lbs)</label>
             <input
@@ -281,7 +285,54 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
               className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
             />
           </div>
+          <div>
+            <label className="block text-sm text-zinc-400 mb-2 flex items-center gap-x-1">
+              Target Norm. FFMI
+              <button
+                type="button"
+                onClick={() => setShowNormalizedFfmiInfo((v) => !v)}
+                className="text-indigo-400 hover:text-indigo-300"
+                aria-label="Normalized FFMI calculation info"
+                aria-expanded={showNormalizedFfmiInfo}
+              >
+                <Info size={14} />
+              </button>
+            </label>
+            <input
+              type="number"
+              step="0.1"
+              value={formData.target_normalized_ffmi}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  target_normalized_ffmi: parseFloat(e.target.value) || 18,
+                })
+              }
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
+            />
+          </div>
         </div>
+
+        {showNormalizedFfmiInfo && (
+          <div className="mb-6 sm:mb-8 p-4 bg-zinc-800/70 border border-zinc-700 rounded-2xl text-sm text-zinc-300 leading-relaxed">
+            <p className="font-medium text-white mb-2">How Normalized FFMI is calculated</p>
+            <p className="mb-3">
+              Normalized FFMI adjusts your FFMI to a 1.8 m (5&apos;11&quot;) reference height so
+              shorter and taller users can compare muscular development more fairly.
+            </p>
+            <div className="font-mono text-xs bg-zinc-900/80 border border-zinc-700 rounded-xl px-3 py-2.5 text-indigo-300 mb-3">
+              Normalized FFMI = FFMI + 6.1 × (1.8 − height in m)
+            </div>
+            <ol className="space-y-1.5 text-xs text-zinc-400 list-decimal list-inside">
+              <li>Lean mass (kg) = weight (kg) × (1 − body fat % ÷ 100)</li>
+              <li>FFMI = lean mass (kg) ÷ height (m)²</li>
+              <li>Apply the height adjustment using your profile height</li>
+            </ol>
+            <p className="text-xs text-zinc-500 mt-3">
+              Set your normalized FFMI goal to track height-adjusted muscle development over time.
+            </p>
+          </div>
+        )}
         </div>
 
         <div className="flex gap-3 p-5 sm:px-8 sm:pb-8 pt-0 shrink-0">

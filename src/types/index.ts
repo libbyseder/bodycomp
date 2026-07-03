@@ -20,6 +20,7 @@ export interface Profile {
   target_weight?: number | null
   target_body_fat?: number | null
   target_ffmi?: number | null
+  target_normalized_ffmi?: number | null
   created_at?: string
   updated_at?: string
 }

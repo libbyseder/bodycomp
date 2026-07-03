@@ -44,6 +44,7 @@ interface VisibilitySettings {
   weightGoal: boolean
   bfGoal: boolean
   ffmiGoal: boolean
+  normalizedFfmiGoal: boolean
 }
 
 interface DailyAverage {
@@ -89,6 +90,7 @@ export default function TrendsChart({
     weightGoal: true,
     bfGoal: true,
     ffmiGoal: true,
+    normalizedFfmiGoal: true,
   })
 
   const sorted = useMemo(
@@ -232,6 +234,16 @@ export default function TrendsChart({
         pointStyle: 'circle',
         yAxisID: 'y2',
       },
+      visibility.normalizedFfmiGoal && profile?.target_normalized_ffmi != null && {
+        label: 'Norm. FFMI Goal',
+        data: Array(labels.length).fill(profile.target_normalized_ffmi),
+        borderColor: '#a78bfa',
+        borderDash: [6, 4],
+        borderWidth: 2,
+        pointRadius: 0,
+        pointStyle: 'circle',
+        yAxisID: 'y2',
+      },
     ].filter(Boolean) as any[],
   }
 
@@ -313,7 +325,8 @@ export default function TrendsChart({
           !isMobile ||
           visibility.ffmi ||
           visibility.normalizedFfmi ||
-          visibility.ffmiGoal,
+          visibility.ffmiGoal ||
+          visibility.normalizedFfmiGoal,
         title: {
           display: !isMobile,
           text: 'FFMI',

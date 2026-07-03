@@ -73,7 +73,7 @@ export default function SettingsTab({
             </div>
             <div>
               <p className="font-medium text-white">Profile &amp; Goals</p>
-              <p className="text-sm text-zinc-400 mt-0.5">Name, height, targets</p>
+              <p className="text-sm text-zinc-400 mt-0.5">Name, height, FFMI &amp; normalized goals</p>
             </div>
           </button>
         </SettingsRow>
