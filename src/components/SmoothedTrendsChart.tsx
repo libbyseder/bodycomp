@@ -22,6 +22,7 @@ import {
   type TrendPeriod,
 } from '../lib/movingAverage'
 import { goalLegendLabels } from '../lib/chartLegend'
+import FfmiCalcInfo, { FfmiInfoButton } from './FfmiCalcInfo'
 
 ChartJS.register(
   CategoryScale,
@@ -114,6 +115,7 @@ export default function SmoothedTrendsChart({
 }: SmoothedTrendsChartProps) {
   const [period, setPeriod] = useState<TrendPeriod>(7)
   const [showSettings, setShowSettings] = useState(false)
+  const [showFfmiInfo, setShowFfmiInfo] = useState(false)
   const isMobile = useIsMobile()
 
   const [visibility, setVisibility] = useState<VisibilitySettings>({
@@ -175,7 +177,6 @@ export default function SmoothedTrendsChart({
   const weightGoal = profile?.target_weight ?? null
   const bodyFatGoal = profile?.target_body_fat ?? null
   const ffmiGoal = profile?.target_ffmi ?? null
-  const smoothingWindow = getSmoothingWindow(periodPoints.length)
 
   const chartData = {
     labels,
@@ -192,7 +193,7 @@ export default function SmoothedTrendsChart({
         yAxisID: 'y',
       },
       visibility.weightTrend && {
-        label: `Weight Trend (${smoothingWindow}-Day Avg)`,
+        label: 'Weight Trend',
         data: weightTrend,
         borderColor: '#10b981',
         borderWidth: 3,
@@ -215,7 +216,7 @@ export default function SmoothedTrendsChart({
         yAxisID: 'y1',
       },
       visibility.bodyFatTrend && {
-        label: `Body Fat Trend (${smoothingWindow}-Day Avg)`,
+        label: 'Body Fat Trend',
         data: bodyFatTrend,
         borderColor: '#f59e0b',
         borderWidth: 2.5,
@@ -238,7 +239,7 @@ export default function SmoothedTrendsChart({
         yAxisID: 'y2',
       },
       visibility.ffmiTrend && {
-        label: `FFMI Trend (${smoothingWindow}-Day Avg)`,
+        label: 'FFMI Trend',
         data: ffmiTrend,
         borderColor: '#3b82f6',
         borderWidth: 2.5,
@@ -466,7 +467,10 @@ export default function SmoothedTrendsChart({
           </div>
 
           <div className="bg-zinc-800/70 border border-zinc-700 rounded-2xl px-4 py-3">
-            <p className="text-xs text-zinc-400 uppercase tracking-wide">FFMI Trend</p>
+            <p className="text-xs text-zinc-400 uppercase tracking-wide flex items-center">
+              FFMI Trend
+              <FfmiInfoButton onClick={() => setShowFfmiInfo((v) => !v)} />
+            </p>
             <p className="text-2xl font-semibold text-blue-400 mt-1">
               {latestFfmiTrend != null ? latestFfmiTrend : '—'}
             </p>
@@ -477,6 +481,11 @@ export default function SmoothedTrendsChart({
             </p>
           </div>
         </div>
+
+        <FfmiCalcInfo
+          open={showFfmiInfo}
+          onToggle={() => setShowFfmiInfo((v) => !v)}
+        />
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
