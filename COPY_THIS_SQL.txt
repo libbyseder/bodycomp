@@ -1,11 +1,7 @@
--- Run in Supabase SQL Editor
--- One row per user per date, with averaged values and a log count
-
 ALTER TABLE measurements ADD COLUMN IF NOT EXISTS log_count integer NOT NULL DEFAULT 1;
 ALTER TABLE measurements ADD COLUMN IF NOT EXISTS body_fat_log_count integer NOT NULL DEFAULT 0;
 ALTER TABLE measurements ADD COLUMN IF NOT EXISTS logged_at timestamptz;
 
--- Backfill counts for existing rows
 UPDATE measurements
 SET body_fat_log_count = CASE WHEN body_fat IS NOT NULL THEN 1 ELSE 0 END
 WHERE body_fat_log_count = 0 AND log_count = 1;
@@ -14,7 +10,6 @@ UPDATE measurements
 SET logged_at = (date::date + time '12:00:00') AT TIME ZONE 'UTC'
 WHERE logged_at IS NULL;
 
--- Consolidate duplicate date rows into one averaged row (safe to re-run)
 WITH agg AS (
   SELECT
     user_id,
@@ -56,11 +51,9 @@ AND EXISTS (
   HAVING COUNT(*) > 1
 );
 
--- Enforce one row per user per date
 ALTER TABLE measurements DROP CONSTRAINT IF EXISTS measurements_user_id_date_key;
 ALTER TABLE measurements ADD CONSTRAINT measurements_user_id_date_key UNIQUE (user_id, date);
 
--- Track which Withings readings have been merged (for sync dedup)
 CREATE TABLE IF NOT EXISTS withings_synced_grpids (
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   grpid bigint NOT NULL,
