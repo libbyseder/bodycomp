@@ -15,6 +15,7 @@ import type { Measurement } from '../types'
 import type { Profile } from '../types'
 import { Settings } from 'lucide-react'
 import { goalLegendLabels } from '../lib/chartLegend'
+import { calculateFFMI, calculateNormalizedFFMI } from '../lib/calculateFFMI'
 
 ChartJS.register(
   CategoryScale,
@@ -39,6 +40,7 @@ interface VisibilitySettings {
   weight: boolean
   bodyFat: boolean
   ffmi: boolean
+  normalizedFfmi: boolean
   weightGoal: boolean
   bfGoal: boolean
   ffmiGoal: boolean
@@ -49,6 +51,7 @@ interface DailyAverage {
   weight: number
   body_fat: number | null
   ffmi: number | null
+  normalized_ffmi: number | null
   count: number
 }
 
@@ -82,6 +85,7 @@ export default function TrendsChart({
     weight: true,
     bodyFat: true,
     ffmi: true,
+    normalizedFfmi: false,
     weightGoal: true,
     bfGoal: true,
     ffmiGoal: true,
@@ -97,19 +101,16 @@ export default function TrendsChart({
 
     // One row per date — values are already daily averages
     const averaged: DailyAverage[] = sorted.map((m) => {
-      let ffmi = null
-      const h = profile?.height_inches
-      if (m.body_fat !== null && h) {
-        const kg = m.weight / 2.20462
-        const leanKg = kg * (1 - m.body_fat / 100)
-        ffmi = parseFloat((leanKg / Math.pow(h * 0.0254, 2)).toFixed(2))
-      }
+      const h = m.height_inches ?? profile?.height_inches ?? null
+      const ffmi = h ? calculateFFMI(m.weight, m.body_fat, h) : null
+      const normalized_ffmi = h ? calculateNormalizedFFMI(m.weight, m.body_fat, h) : null
 
       return {
         date: m.date,
         weight: m.weight,
         body_fat: m.body_fat,
         ffmi,
+        normalized_ffmi,
         count: m.log_count ?? 1,
       }
     })
@@ -159,6 +160,7 @@ export default function TrendsChart({
   const wData = data.map(d => d.weight)
   const bfData = data.map(d => d.body_fat)
   const ffmiData = data.map(d => d.ffmi)
+  const normalizedFfmiData = data.map(d => d.normalized_ffmi)
 
   const chartData = {
     labels,
@@ -185,6 +187,15 @@ export default function TrendsChart({
         label: 'FFMI',
         data: ffmiData,
         borderColor: '#3b82f6',
+        borderWidth: 3,
+        tension: 0.3,
+        spanGaps: true,
+        yAxisID: 'y2',
+      },
+      visibility.normalizedFfmi && {
+        label: 'Norm. FFMI',
+        data: normalizedFfmiData,
+        borderColor: '#818cf8',
         borderWidth: 3,
         tension: 0.3,
         spanGaps: true,
@@ -256,6 +267,11 @@ export default function TrendsChart({
             if (label === 'FFMI') {
               return point.ffmi ? `FFMI: ${point.ffmi} (avg of ${point.count})` : 'FFMI: —'
             }
+            if (label === 'Norm. FFMI') {
+              return point.normalized_ffmi
+                ? `Norm. FFMI: ${point.normalized_ffmi} (avg of ${point.count})`
+                : 'Norm. FFMI: —'
+            }
             return `${label}: ${context.raw}`
           },
         },
@@ -293,7 +309,11 @@ export default function TrendsChart({
       y2: {
         position: 'right' as const,
         offset: !isMobile,
-        display: !isMobile || visibility.ffmi || visibility.ffmiGoal,
+        display:
+          !isMobile ||
+          visibility.ffmi ||
+          visibility.normalizedFfmi ||
+          visibility.ffmiGoal,
         title: {
           display: !isMobile,
           text: 'FFMI',

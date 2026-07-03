@@ -1,5 +1,5 @@
 import type { Measurement, Profile } from '../types'
-import { calculateFFMI, calculateLeanMassLbs } from '../lib/calculateFFMI'
+import { calculateFFMI, calculateNormalizedFFMI, calculateLeanMassLbs } from '../lib/calculateFFMI'
 import { ChevronRight } from 'lucide-react'
 
 interface MeasurementTimelineProps {
@@ -45,6 +45,7 @@ export default function MeasurementTimeline({
         {recent.map((m) => {
           const height = m.height_inches ?? profile?.height_inches
           const ffmi = height ? calculateFFMI(m.weight, m.body_fat, height) : null
+          const normalizedFfmi = height ? calculateNormalizedFFMI(m.weight, m.body_fat, height) : null
           const leanMass = calculateLeanMassLbs(m.weight, m.body_fat)
 
           return (
@@ -73,6 +74,12 @@ export default function MeasurementTimeline({
                   <div className="text-right hidden sm:block">
                     <p className="text-blue-400 font-medium">{ffmi}</p>
                     <p className="text-zinc-500 text-xs">FFMI</p>
+                  </div>
+                )}
+                {normalizedFfmi != null && (
+                  <div className="text-right hidden md:block">
+                    <p className="text-indigo-400 font-medium">{normalizedFfmi}</p>
+                    <p className="text-zinc-500 text-xs">Norm.</p>
                   </div>
                 )}
                 {leanMass != null && (

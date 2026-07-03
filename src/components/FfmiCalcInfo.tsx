@@ -40,11 +40,19 @@ export default function FfmiCalcInfo({
           <div className="font-mono text-xs bg-zinc-900/80 border border-zinc-700 rounded-xl px-3 py-2.5 text-blue-300 mb-3">
             FFMI = lean mass (kg) ÷ height (m)²
           </div>
-          <ul className="space-y-1.5 text-xs text-zinc-400">
+          <ul className="space-y-1.5 text-xs text-zinc-400 mb-4">
             <li>Lean mass (kg) = weight (kg) × (1 − body fat % ÷ 100)</li>
             <li>Height comes from your profile settings</li>
             <li>Trend lines use a moving average to smooth daily noise</li>
           </ul>
+          <p className="font-medium text-white mb-2">Normalized FFMI</p>
+          <p className="mb-3">
+            Normalized FFMI adjusts your score to a 1.8 m (5&apos;11&quot;) reference height so
+            shorter and taller users can compare muscular development more fairly.
+          </p>
+          <div className="font-mono text-xs bg-zinc-900/80 border border-zinc-700 rounded-xl px-3 py-2.5 text-indigo-300">
+            Normalized FFMI = FFMI + 6.1 × (1.8 − height in m)
+          </div>
         </div>
       )}
     </div>

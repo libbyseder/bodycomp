@@ -4,6 +4,7 @@ import {
   progressTowardLowerGoal,
   progressTowardWeightGoal,
 } from '../lib/goalProgress'
+import { calculateFFMI, calculateNormalizedFFMI, calculateLeanMassLbs } from '../lib/calculateFFMI'
 
 interface DashboardWidgetsProps {
   measurements: Measurement[]
@@ -18,13 +19,14 @@ export default function DashboardWidgets({ measurements, profile }: DashboardWid
   const currentWeight = latest.weight
   const currentBf = latest.body_fat ?? 0
 
-  const currentLeanMass = latest.body_fat
-    ? parseFloat((latest.weight * (1 - latest.body_fat / 100)).toFixed(1))
-    : null
+  const currentLeanMass = calculateLeanMassLbs(latest.weight, latest.body_fat)
 
   const heightForCalc = latest.height_inches ?? profile?.height_inches ?? null
-  const currentFfmi = heightForCalc && latest.body_fat
-    ? parseFloat(((latest.weight / 2.20462) * (1 - latest.body_fat / 100) / Math.pow(heightForCalc * 0.0254, 2)).toFixed(2))
+  const currentFfmi = heightForCalc
+    ? calculateFFMI(latest.weight, latest.body_fat, heightForCalc)
+    : null
+  const currentNormalizedFfmi = heightForCalc
+    ? calculateNormalizedFFMI(latest.weight, latest.body_fat, heightForCalc)
     : null
 
   // Support both old and new column names
@@ -92,7 +94,13 @@ export default function DashboardWidgets({ measurements, profile }: DashboardWid
           <span className="text-blue-400 text-sm font-medium tracking-wider">FFMI</span>
           <span className="text-2xl sm:text-3xl font-semibold">{currentFfmi ?? '—'}</span>
         </div>
-        <div className="text-zinc-400 text-sm mb-4">score</div>
+        <div className="text-zinc-400 text-sm mb-1">score</div>
+        {currentNormalizedFfmi != null && (
+          <p className="text-xs text-indigo-300/90 mb-3">
+            Normalized {currentNormalizedFfmi}
+          </p>
+        )}
+        {currentNormalizedFfmi == null && <div className="mb-4" />}
         {ffmiGoal && currentFfmi && (
           <div>
             <div className="flex justify-between text-xs text-zinc-400 mb-1">

@@ -12,7 +12,7 @@ import {
 } from 'chart.js'
 import { Line } from 'react-chartjs-2'
 import type { Measurement, Profile } from '../types'
-import { calculateFFMI } from '../lib/calculateFFMI'
+import { calculateFFMI, calculateNormalizedFFMI } from '../lib/calculateFFMI'
 import {
   computeSimpleMovingAverage,
   filterPointsByPeriod,
@@ -48,6 +48,7 @@ interface DailyPoint {
   weight: number
   body_fat: number | null
   ffmi: number | null
+  normalized_ffmi: number | null
 }
 
 interface VisibilitySettings {
@@ -57,6 +58,8 @@ interface VisibilitySettings {
   bodyFatTrend: boolean
   rawFfmi: boolean
   ffmiTrend: boolean
+  rawNormalizedFfmi: boolean
+  normalizedFfmiTrend: boolean
   weightGoal: boolean
   bodyFatGoal: boolean
   ffmiGoal: boolean
@@ -92,6 +95,10 @@ function buildDailyPoints(
         heightInches != null
           ? calculateFFMI(measurement.weight, measurement.body_fat, heightInches)
           : null,
+      normalized_ffmi:
+        heightInches != null
+          ? calculateNormalizedFFMI(measurement.weight, measurement.body_fat, heightInches)
+          : null,
     }))
 }
 
@@ -125,6 +132,8 @@ export default function SmoothedTrendsChart({
     bodyFatTrend: true,
     rawFfmi: false,
     ffmiTrend: true,
+    rawNormalizedFfmi: false,
+    normalizedFfmiTrend: false,
     weightGoal: true,
     bodyFatGoal: true,
     ffmiGoal: true,
@@ -144,32 +153,40 @@ export default function SmoothedTrendsChart({
     weightTrend,
     bodyFatTrend,
     ffmiTrend,
+    normalizedFfmiTrend,
     latestWeightTrend,
     latestBodyFatTrend,
     latestFfmiTrend,
+    latestNormalizedFfmiTrend,
     weightDelta,
     bodyFatDelta,
     ffmiDelta,
+    normalizedFfmiDelta,
   } = useMemo(() => {
     const smoothingWindow = getSmoothingWindow(periodPoints.length)
     const weights = periodPoints.map((point) => point.weight)
     const bodyFats = periodPoints.map((point) => point.body_fat)
     const ffmis = periodPoints.map((point) => point.ffmi)
+    const normalizedFfmis = periodPoints.map((point) => point.normalized_ffmi)
 
     const nextWeightTrend = computeSimpleMovingAverage(weights, smoothingWindow)
     const nextBodyFatTrend = computeSimpleMovingAverage(bodyFats, smoothingWindow)
     const nextFfmiTrend = computeSimpleMovingAverage(ffmis, smoothingWindow)
+    const nextNormalizedFfmiTrend = computeSimpleMovingAverage(normalizedFfmis, smoothingWindow)
 
     return {
       weightTrend: nextWeightTrend,
       bodyFatTrend: nextBodyFatTrend,
       ffmiTrend: nextFfmiTrend,
+      normalizedFfmiTrend: nextNormalizedFfmiTrend,
       latestWeightTrend: latestTrendValue(nextWeightTrend),
       latestBodyFatTrend: latestTrendValue(nextBodyFatTrend),
       latestFfmiTrend: latestTrendValue(nextFfmiTrend),
+      latestNormalizedFfmiTrend: latestTrendValue(nextNormalizedFfmiTrend),
       weightDelta: periodDelta(nextWeightTrend),
       bodyFatDelta: periodDelta(nextBodyFatTrend),
       ffmiDelta: periodDelta(nextFfmiTrend),
+      normalizedFfmiDelta: periodDelta(nextNormalizedFfmiTrend),
     }
   }, [periodPoints])
 
@@ -242,6 +259,29 @@ export default function SmoothedTrendsChart({
         label: 'FFMI Trend',
         data: ffmiTrend,
         borderColor: '#3b82f6',
+        borderWidth: 2.5,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        tension: 0.35,
+        spanGaps: true,
+        yAxisID: 'y2',
+      },
+      visibility.rawNormalizedFfmi && {
+        label: 'Daily Norm. FFMI',
+        data: periodPoints.map((point) => point.normalized_ffmi),
+        borderColor: 'rgba(129, 140, 248, 0.35)',
+        backgroundColor: 'rgba(129, 140, 248, 0.12)',
+        borderWidth: 1.5,
+        pointRadius: isMobile ? 2 : 3,
+        pointHoverRadius: 5,
+        tension: 0.1,
+        spanGaps: true,
+        yAxisID: 'y2',
+      },
+      visibility.normalizedFfmiTrend && {
+        label: 'Norm. FFMI Trend',
+        data: normalizedFfmiTrend,
+        borderColor: '#818cf8',
         borderWidth: 2.5,
         pointRadius: 0,
         pointHoverRadius: 4,
@@ -368,7 +408,12 @@ export default function SmoothedTrendsChart({
       },
       y2: {
         position: 'right' as const,
-        display: visibility.rawFfmi || visibility.ffmiTrend || visibility.ffmiGoal,
+        display:
+          visibility.rawFfmi ||
+          visibility.ffmiTrend ||
+          visibility.rawNormalizedFfmi ||
+          visibility.normalizedFfmiTrend ||
+          visibility.ffmiGoal,
         title: {
           display: !isMobile,
           text: 'FFMI',
@@ -400,6 +445,7 @@ export default function SmoothedTrendsChart({
       rawWeight: enabled,
       rawBodyFat: enabled,
       rawFfmi: enabled,
+      rawNormalizedFfmi: enabled,
     }))
 
   const setAllGoals = (enabled: boolean) =>
@@ -479,6 +525,16 @@ export default function SmoothedTrendsChart({
                 ? `${ffmiDelta > 0 ? '+' : ''}${ffmiDelta} in period`
                 : 'No change in period'}
             </p>
+            {latestNormalizedFfmiTrend != null && (
+              <p className="text-xs text-indigo-300/80 mt-2">
+                Norm. {latestNormalizedFfmiTrend}
+                {normalizedFfmiDelta != null && (
+                  <span className="text-zinc-500">
+                    {' '}({normalizedFfmiDelta > 0 ? '+' : ''}{normalizedFfmiDelta})
+                  </span>
+                )}
+              </p>
+            )}
           </div>
         </div>
 
@@ -533,6 +589,8 @@ export default function SmoothedTrendsChart({
                 ['bodyFatGoal', 'Body fat goal'],
                 ['rawFfmi', 'Daily FFMI'],
                 ['ffmiTrend', 'FFMI trend'],
+                ['rawNormalizedFfmi', 'Daily norm. FFMI'],
+                ['normalizedFfmiTrend', 'Norm. FFMI trend'],
                 ['ffmiGoal', 'FFMI goal'],
               ] as const
             ).map(([key, label]) => (

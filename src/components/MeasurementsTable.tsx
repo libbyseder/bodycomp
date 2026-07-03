@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Measurement } from '../types'
 import type { Profile } from '../types'
-import { calculateFFMI, calculateLeanMassLbs } from '../lib/calculateFFMI'
+import { calculateFFMI, calculateNormalizedFFMI, calculateLeanMassLbs } from '../lib/calculateFFMI'
 import { Trash2 } from 'lucide-react'
 
 interface MeasurementsTableProps {
@@ -19,20 +19,18 @@ export default function MeasurementsTable({ measurements, onDelete, profile }: M
   const currentMeasurements = measurements.slice(startIndex, startIndex + itemsPerPage)
 
   const getMetrics = (m: Measurement) => {
+    const height = m.height_inches ?? profile?.height_inches ?? null
     const leanMass = calculateLeanMassLbs(m.weight, m.body_fat)
-    const ffmi = m.height_inches
-      ? calculateFFMI(m.weight, m.body_fat, m.height_inches)
-      : (profile?.height_inches
-          ? calculateFFMI(m.weight, m.body_fat, profile.height_inches)
-          : null)
-    return { leanMass, ffmi }
+    const ffmi = height ? calculateFFMI(m.weight, m.body_fat, height) : null
+    const normalizedFfmi = height ? calculateNormalizedFFMI(m.weight, m.body_fat, height) : null
+    return { leanMass, ffmi, normalizedFfmi }
   }
 
   return (
     <div>
       {/* Desktop table */}
       <div className="hidden md:block overflow-x-auto -mx-2 px-2">
-        <table className="w-full min-w-[640px]">
+        <table className="w-full min-w-[720px]">
           <thead>
             <tr className="border-b border-zinc-700 text-left text-sm text-zinc-400">
               <th className="pb-3 pr-4">Date</th>
@@ -41,12 +39,13 @@ export default function MeasurementsTable({ measurements, onDelete, profile }: M
               <th className="pb-3 pr-4">Body Fat</th>
               <th className="pb-3 pr-4">Lean Mass</th>
               <th className="pb-3 pr-4">FFMI</th>
+              <th className="pb-3 pr-4">Norm. FFMI</th>
               <th className="pb-3 w-10"></th>
             </tr>
           </thead>
           <tbody>
             {currentMeasurements.map((m) => {
-              const { leanMass, ffmi } = getMetrics(m)
+              const { leanMass, ffmi, normalizedFfmi } = getMetrics(m)
               return (
                 <tr key={m.id} className="border-b border-zinc-800 last:border-none">
                   <td className="py-3 pr-4 text-white text-sm">{m.date}</td>
@@ -60,8 +59,11 @@ export default function MeasurementsTable({ measurements, onDelete, profile }: M
                   <td className="py-3 pr-4 text-emerald-400 font-medium text-sm">
                     {leanMass ? `${leanMass} lbs` : '—'}
                   </td>
-                  <td className="py-3 pr-4 text-emerald-400 font-medium text-sm">
+                  <td className="py-3 pr-4 text-blue-400 font-medium text-sm">
                     {ffmi ?? '—'}
+                  </td>
+                  <td className="py-3 pr-4 text-indigo-400 font-medium text-sm">
+                    {normalizedFfmi ?? '—'}
                   </td>
                   <td className="py-3">
                     <button
@@ -81,7 +83,7 @@ export default function MeasurementsTable({ measurements, onDelete, profile }: M
       {/* Mobile cards */}
       <div className="md:hidden space-y-3">
         {currentMeasurements.map((m) => {
-          const { leanMass, ffmi } = getMetrics(m)
+          const { leanMass, ffmi, normalizedFfmi } = getMetrics(m)
           return (
             <div
               key={m.id}
@@ -117,7 +119,11 @@ export default function MeasurementsTable({ measurements, onDelete, profile }: M
                 </div>
                 <div>
                   <p className="text-zinc-500 text-xs">FFMI</p>
-                  <p className="text-emerald-400">{ffmi ?? '—'}</p>
+                  <p className="text-blue-400">{ffmi ?? '—'}</p>
+                </div>
+                <div>
+                  <p className="text-zinc-500 text-xs">Norm. FFMI</p>
+                  <p className="text-indigo-400">{normalizedFfmi ?? '—'}</p>
                 </div>
               </div>
             </div>
