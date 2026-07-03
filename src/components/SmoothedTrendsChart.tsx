@@ -37,6 +37,9 @@ ChartJS.register(
 interface SmoothedTrendsChartProps {
   measurements: Measurement[]
   profile: Profile | null
+  title?: string
+  subtitle?: string
+  className?: string
 }
 
 interface DailyPoint {
@@ -105,6 +108,9 @@ function periodDelta(values: (number | null)[]): number | null {
 export default function SmoothedTrendsChart({
   measurements,
   profile,
+  title = 'Smoothed Trends',
+  subtitle,
+  className = 'mb-6 sm:mb-8',
 }: SmoothedTrendsChartProps) {
   const [period, setPeriod] = useState<TrendPeriod>(7)
   const [showSettings, setShowSettings] = useState(false)
@@ -406,13 +412,13 @@ export default function SmoothedTrendsChart({
   if (allDailyPoints.length === 0) return null
 
   return (
-    <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8">
+    <div className={`bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 ${className}`}>
       <div className="flex flex-col gap-4 mb-4 sm:mb-6">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
           <div>
-            <h2 className="text-xl sm:text-2xl font-semibold">Smoothed Trends</h2>
+            <h2 className="text-xl sm:text-2xl font-semibold">{title}</h2>
             <p className="text-zinc-400 text-sm mt-1">
-              Moving averages for weight, body fat, and FFMI — {getTrendPeriodLabel(period)}
+              {subtitle ?? `Moving averages for weight, body fat, and FFMI — ${getTrendPeriodLabel(period)}`}
             </p>
           </div>
 

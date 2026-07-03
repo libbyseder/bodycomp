@@ -6,19 +6,20 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import AuthModal from './components/AuthModal'
 import QuickLogModal from './components/QuickLogModal'
 import ProfileModal from './components/ProfileModal'
-import DashboardWidgets from './components/DashboardWidgets'
-import TrendsChart from './components/TrendsChart'
-import SmoothedTrendsChart from './components/SmoothedTrendsChart'
-import ImportCSV from './components/ImportCSV'
 import DashboardHeader from './components/DashboardHeader'
 import InstallPrompt from './components/InstallPrompt'
 import BodyTrendBrand from './components/BodyTrendBrand'
-import MeasurementsTable from './components/MeasurementsTable'
+import BottomTabBar from './components/BottomTabBar'
+import QuickLogFab from './components/QuickLogFab'
+import HomeTab from './components/HomeTab'
+import TrendsTab from './components/TrendsTab'
+import LogTab from './components/LogTab'
+import SettingsTab from './components/SettingsTab'
 import { useMeasurements } from './hooks/useMeasurements'
 import { useProfile } from './hooks/useProfile'
 import { useWithingsConnection } from './hooks/useWithingsConnection'
+import type { TabId } from './types/navigation'
 import toast, { Toaster } from 'react-hot-toast'
-import { Plus, RefreshCw } from 'lucide-react'
 
 function Dashboard() {
   const { user, signOut } = useAuth()
@@ -26,6 +27,7 @@ function Dashboard() {
   const { profile, refetchProfile } = useProfile()
   const { connected: withingsConnected, loading: withingsLoading, refetch: refetchWithings } = useWithingsConnection()
 
+  const [activeTab, setActiveTab] = useState<TabId>('home')
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showQuickLog, setShowQuickLog] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
@@ -33,6 +35,7 @@ function Dashboard() {
   useEffect(() => {
     setShowProfile(false)
     setShowQuickLog(false)
+    setActiveTab('home')
   }, [user?.id])
 
   const saveWithingsTokens = useCallback(async (
@@ -62,6 +65,7 @@ function Dashboard() {
       if (result.success) {
         toast.success('Withings connected successfully!')
         await refetchWithings()
+        setActiveTab('settings')
       } else {
         toast.error('Failed to save Withings connection')
         console.error(result)
@@ -72,7 +76,6 @@ function Dashboard() {
     }
   }, [refetchWithings])
 
-  // Web OAuth return (browser redirect with query params)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (params.get('withings_success') === 'true') {
@@ -86,19 +89,18 @@ function Dashboard() {
     }
   }, [saveWithingsTokens])
 
-  // iOS OAuth return (custom URL scheme deep link)
   useEffect(() => {
     return registerWithingsDeepLinkHandler(saveWithingsTokens)
   }, [saveWithingsTokens])
 
   const handleDeleteAll = async () => {
-    if (!confirm("Are you sure you want to delete ALL your measurements? This cannot be undone.")) {
+    if (!confirm('Are you sure you want to delete ALL your measurements? This cannot be undone.')) {
       return
     }
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
-        toast.error("Please log in first")
+        toast.error('Please log in first')
         return
       }
       const response = await fetch(apiUrl('/api/delete-all'), {
@@ -107,13 +109,15 @@ function Dashboard() {
       })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Delete failed')
-      toast.success("All measurements deleted (Withings sync history reset)")
+      toast.success('All measurements deleted (Withings sync history reset)')
       await refetch()
     } catch (err) {
       console.error(err)
-      toast.error("Failed to delete measurements")
+      toast.error('Failed to delete measurements')
     }
   }
+
+  const showFab = activeTab === 'home' || activeTab === 'log'
 
   if (!user) {
     return (
@@ -134,72 +138,63 @@ function Dashboard() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-200">
-      <div className="max-w-5xl mx-auto px-4 py-5 sm:px-6 sm:py-6">
+      <div className="max-w-5xl mx-auto px-4 pt-5 sm:px-6 sm:pt-6 pb-tab-bar">
         <DashboardHeader
-          refetch={refetch}
-          onProfile={() => setShowProfile(true)}
-          onSignOut={signOut}
           withingsConnected={withingsConnected}
           withingsLoading={withingsLoading}
+          measurementCount={measurements.length}
+          onOpenSettings={() => setActiveTab('settings')}
         />
 
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tighter">Dashboard</h1>
-            <p className="text-zinc-400 mt-1 text-sm sm:text-base">Track your progress over time</p>
-          </div>
-          <button
-            onClick={() => setShowQuickLog(true)}
-            className="flex items-center justify-center gap-x-2 px-5 py-3 bg-cyan-500 hover:bg-cyan-600 rounded-2xl font-medium transition-colors w-full sm:w-auto shrink-0"
-          >
-            <Plus size={18} /> Quick Log
-          </button>
-        </div>
-
-        <DashboardWidgets measurements={measurements} profile={profile} />
-        <TrendsChart measurements={measurements} profile={profile} />
-        <SmoothedTrendsChart measurements={measurements} profile={profile} />
-
-        <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8">
-          <div className="flex flex-col gap-4 mb-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <h2 className="text-xl sm:text-2xl font-semibold">Measurements</h2>
-              <span className="text-sm text-zinc-400">{measurements.length} total entries</span>
-            </div>
-            <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2">
-              <ImportCSV refetch={refetch} />
-              <button
-                onClick={handleDeleteAll}
-                className="flex items-center justify-center gap-x-2 px-3 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm transition-colors w-full sm:w-auto"
-              >
-                Delete All
-              </button>
-              <button
-                onClick={() => window.location.reload()}
-                className="flex items-center justify-center gap-x-2 px-3 py-2.5 bg-zinc-700 hover:bg-zinc-600 rounded-xl text-sm transition-colors w-full sm:w-auto"
-              >
-                <RefreshCw size={14} /> Refresh
-              </button>
-            </div>
-          </div>
-
-          <MeasurementsTable
+        {activeTab === 'home' && (
+          <HomeTab
             measurements={measurements}
-            onDelete={deleteMeasurement}
             profile={profile}
+            withingsConnected={withingsConnected}
+            onNavigateToLog={() => setActiveTab('log')}
+            onNavigateToSettings={() => setActiveTab('settings')}
+            onNavigateToTrends={() => setActiveTab('trends')}
           />
-        </div>
+        )}
+
+        {activeTab === 'trends' && (
+          <TrendsTab measurements={measurements} profile={profile} />
+        )}
+
+        {activeTab === 'log' && (
+          <LogTab
+            measurements={measurements}
+            profile={profile}
+            onDelete={deleteMeasurement}
+            onRefresh={refetch}
+            onQuickLog={() => setShowQuickLog(true)}
+          />
+        )}
+
+        {activeTab === 'settings' && (
+          <SettingsTab
+            refetch={refetch}
+            onProfile={() => setShowProfile(true)}
+            onSignOut={signOut}
+            onDeleteAll={() => void handleDeleteAll()}
+            withingsConnected={withingsConnected}
+            withingsLoading={withingsLoading}
+          />
+        )}
       </div>
+
+      {showFab && <QuickLogFab onClick={() => setShowQuickLog(true)} />}
+      <BottomTabBar activeTab={activeTab} onTabChange={setActiveTab} />
 
       <QuickLogModal
         isOpen={showQuickLog}
         onClose={() => setShowQuickLog(false)}
         refetch={refetch}
       />
-      <ProfileModal 
-        isOpen={showProfile} 
-        onClose={() => setShowProfile(false)} 
-        onSave={refetchProfile} 
+      <ProfileModal
+        isOpen={showProfile}
+        onClose={() => setShowProfile(false)}
+        onSave={refetchProfile}
       />
     </div>
   )

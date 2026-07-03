@@ -30,6 +30,7 @@ ChartJS.register(
 interface TrendsChartProps {
   measurements: Measurement[]
   profile: Profile | null
+  className?: string
 }
 
 type TimePeriod = 'week' | 'month' | 'quarter' | 'year' | 'all'
@@ -67,7 +68,11 @@ function useIsMobile(breakpoint = 640) {
   return isMobile
 }
 
-export default function TrendsChart({ measurements, profile }: TrendsChartProps) {
+export default function TrendsChart({
+  measurements,
+  profile,
+  className = 'mb-6 sm:mb-8',
+}: TrendsChartProps) {
   const [period, setPeriod] = useState<TimePeriod>('month')
   const [offset, setOffset] = useState(0)
   const [showAdvanced, setShowAdvanced] = useState(false)
@@ -306,7 +311,7 @@ export default function TrendsChart({ measurements, profile }: TrendsChartProps)
     setVisibility(v => ({ ...v, [key]: !v[key] }))
 
   return (
-    <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8">
+    <div className={`bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 ${className}`}>
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 sm:mb-6 gap-3 sm:gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-semibold">Trends</h2>

@@ -9,6 +9,7 @@ import { apiUrl } from '../lib/apiBase'
 
 interface ImportCSVProps {
   refetch: () => Promise<void>
+  className?: string
 }
 
 function getCell(row: Record<string, unknown>, keys: string[]): string | undefined {
@@ -29,7 +30,7 @@ function getCell(row: Record<string, unknown>, keys: string[]): string | undefin
   return undefined
 }
 
-export default function ImportCSV({ refetch }: ImportCSVProps) {
+export default function ImportCSV({ refetch, className = '' }: ImportCSVProps) {
   const [isImporting, setIsImporting] = useState(false)
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -171,7 +172,7 @@ export default function ImportCSV({ refetch }: ImportCSVProps) {
   }
 
   return (
-    <label className="flex items-center justify-center gap-x-2 px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm cursor-pointer transition-colors w-full lg:w-auto">
+    <label className={`flex items-center justify-center gap-x-2 px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm cursor-pointer transition-colors w-full ${className}`}>
       <Upload size={16} className="shrink-0" />
       <span className="truncate">{isImporting ? 'Importing...' : 'Import CSV'}</span>
       <input
