@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useLayoutEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { upsertDailyMeasurement } from '../lib/upsertDailyMeasurement'
 import { useAuth } from '../contexts/AuthContext'
@@ -38,7 +38,10 @@ export function useMeasurements() {
       .eq('user_id', userId)
       .order('date', { ascending: false })
 
-    if (user?.id !== userId) return
+    if (user?.id !== userId) {
+      setLoading(false)
+      return
+    }
 
     if (error) {
       console.error('Error fetching measurements:', error)
@@ -77,10 +80,8 @@ export function useMeasurements() {
     return { error }
   }
 
-  useEffect(() => {
-    const userId = user?.id
-
-    if (!userId) {
+  useLayoutEffect(() => {
+    if (!user?.id) {
       setMeasurements([])
       setLoading(false)
       return
@@ -88,6 +89,14 @@ export function useMeasurements() {
 
     setMeasurements([])
     setLoading(true)
+  }, [user?.id])
+
+  useEffect(() => {
+    const userId = user?.id
+
+    if (!userId) {
+      return
+    }
 
     let cancelled = false
 

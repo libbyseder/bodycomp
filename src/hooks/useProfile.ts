@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -36,7 +36,10 @@ export function useProfile() {
       .eq('id', userId)
       .single()
 
-    if (user?.id !== userId) return
+    if (user?.id !== userId) {
+      setLoading(false)
+      return
+    }
 
     if (!error) {
       setProfile(data)
@@ -49,12 +52,8 @@ export function useProfile() {
     setLoading(false)
   }, [user?.id])
 
-  const refetchProfile = fetchProfile
-
-  useEffect(() => {
-    const userId = user?.id
-
-    if (!userId) {
+  useLayoutEffect(() => {
+    if (!user?.id) {
       setProfile(null)
       setLoading(false)
       return
@@ -62,6 +61,16 @@ export function useProfile() {
 
     setProfile(null)
     setLoading(true)
+  }, [user?.id])
+
+  const refetchProfile = fetchProfile
+
+  useEffect(() => {
+    const userId = user?.id
+
+    if (!userId) {
+      return
+    }
 
     let cancelled = false
 

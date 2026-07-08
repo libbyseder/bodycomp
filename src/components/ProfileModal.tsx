@@ -5,14 +5,30 @@ import { useAuth } from '../contexts/AuthContext'
 import { X, Info } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const DEFAULT_FORM_DATA = {
+type ProfileFormData = {
+  name: string
+  height_inches: number | null
+  gender: 'male' | 'female' | null
+  target_weight: number | null
+  target_body_fat: number | null
+  target_ffmi: number | null
+  target_normalized_ffmi: number | null
+}
+
+const DEFAULT_FORM_DATA: ProfileFormData = {
   name: '',
-  height_inches: 63.5,
-  gender: null as 'male' | 'female' | null,
-  target_weight: 124,
-  target_body_fat: 23,
-  target_ffmi: 18,
-  target_normalized_ffmi: 18,
+  height_inches: null,
+  gender: null,
+  target_weight: null,
+  target_body_fat: null,
+  target_ffmi: null,
+  target_normalized_ffmi: null,
+}
+
+function parseOptionalNumber(value: string): number | null {
+  if (value.trim() === '') return null
+  const parsed = parseFloat(value)
+  return Number.isFinite(parsed) ? parsed : null
 }
 
 interface ProfileModalProps {
@@ -94,13 +110,13 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
 
       if (data) {
         setFormData({
-          name: data.name || '',
-          height_inches: data.height_inches || 63.5,
-          gender: data.gender || null,
-          target_weight: data.target_weight || 124,
-          target_body_fat: data.target_body_fat || 23,
-          target_ffmi: data.target_ffmi || 18,
-          target_normalized_ffmi: data.target_normalized_ffmi || 18,
+          name: data.name ?? '',
+          height_inches: data.height_inches ?? null,
+          gender: data.gender ?? null,
+          target_weight: data.target_weight ?? null,
+          target_body_fat: data.target_body_fat ?? null,
+          target_ffmi: data.target_ffmi ?? null,
+          target_normalized_ffmi: data.target_normalized_ffmi ?? null,
         })
       } else if (error?.code !== 'PGRST116') {
         console.error('Error loading profile:', error)
@@ -117,6 +133,19 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
   if (!isOpen) return null
 
   const handleSave = async () => {
+    if (
+      formData.height_inches == null ||
+      formData.height_inches <= 0 ||
+      !formData.gender ||
+      formData.target_weight == null ||
+      formData.target_weight <= 0 ||
+      formData.target_body_fat == null ||
+      formData.target_body_fat <= 0
+    ) {
+      toast.error('Please set height, gender, target weight, and target body fat')
+      return
+    }
+
     setLoading(true)
 
     const { data: { user } } = await supabase.auth.getUser()
@@ -218,9 +247,12 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
             <input
               type="number"
               step="0.5"
-              value={formData.height_inches}
-              onChange={(e) => setFormData({ ...formData, height_inches: parseFloat(e.target.value) || 63.5 })}
+              value={formData.height_inches ?? ''}
+              onChange={(e) =>
+                setFormData({ ...formData, height_inches: parseOptionalNumber(e.target.value) })
+              }
               className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
+              placeholder="e.g. 65"
             />
           </div>
           <div>
@@ -246,9 +278,12 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
             <label className="block text-sm text-zinc-400 mb-2">Target Weight (lbs)</label>
             <input
               type="number"
-              value={formData.target_weight}
-              onChange={(e) => setFormData({ ...formData, target_weight: parseFloat(e.target.value) || 124 })}
+              value={formData.target_weight ?? ''}
+              onChange={(e) =>
+                setFormData({ ...formData, target_weight: parseOptionalNumber(e.target.value) })
+              }
               className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
+              placeholder="e.g. 140"
             />
           </div>
           <div>
@@ -256,9 +291,12 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
             <input
               type="number"
               step="0.1"
-              value={formData.target_body_fat}
-              onChange={(e) => setFormData({ ...formData, target_body_fat: parseFloat(e.target.value) || 23 })}
+              value={formData.target_body_fat ?? ''}
+              onChange={(e) =>
+                setFormData({ ...formData, target_body_fat: parseOptionalNumber(e.target.value) })
+              }
               className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
+              placeholder="e.g. 22"
             />
           </div>
           <div>
@@ -280,9 +318,12 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
             <input
               type="number"
               step="0.1"
-              value={formData.target_ffmi}
-              onChange={(e) => setFormData({ ...formData, target_ffmi: parseFloat(e.target.value) || 17.5 })}
+              value={formData.target_ffmi ?? ''}
+              onChange={(e) =>
+                setFormData({ ...formData, target_ffmi: parseOptionalNumber(e.target.value) })
+              }
               className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
+              placeholder="Optional"
             />
           </div>
           <div>
@@ -301,14 +342,15 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
             <input
               type="number"
               step="0.1"
-              value={formData.target_normalized_ffmi}
+              value={formData.target_normalized_ffmi ?? ''}
               onChange={(e) =>
                 setFormData({
                   ...formData,
-                  target_normalized_ffmi: parseFloat(e.target.value) || 18,
+                  target_normalized_ffmi: parseOptionalNumber(e.target.value),
                 })
               }
               className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
+              placeholder="Optional"
             />
           </div>
         </div>

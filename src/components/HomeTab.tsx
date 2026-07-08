@@ -1,14 +1,18 @@
 import type { Measurement, Profile } from '../types'
+import { needsSetup } from '../lib/profileSetup'
 import DashboardWidgets from './DashboardWidgets'
 import SmoothedTrendsChart from './SmoothedTrendsChart'
 import GoalPredictionBanner from './GoalPredictionBanner'
 import MeasurementTimeline from './MeasurementTimeline'
-import { Link2 } from 'lucide-react'
+import SetupChecklist from './SetupChecklist'
 
 interface HomeTabProps {
   measurements: Measurement[]
   profile: Profile | null
+  profileLoading: boolean
+  measurementsLoading: boolean
   withingsConnected: boolean
+  onOpenProfile: () => void
   onNavigateToLog: () => void
   onNavigateToSettings: () => void
   onNavigateToTrends: () => void
@@ -17,25 +21,31 @@ interface HomeTabProps {
 export default function HomeTab({
   measurements,
   profile,
+  profileLoading,
+  measurementsLoading,
   withingsConnected,
+  onOpenProfile,
   onNavigateToLog,
   onNavigateToSettings,
   onNavigateToTrends,
 }: HomeTabProps) {
+  const showSetup = needsSetup(
+    profile,
+    measurements.length,
+    profileLoading,
+    measurementsLoading
+  )
+
   return (
     <div>
-      {!withingsConnected && (
-        <button
-          type="button"
-          onClick={onNavigateToSettings}
-          className="w-full mb-6 flex items-center gap-3 p-4 bg-blue-600/10 border border-blue-600/30 rounded-2xl text-left hover:bg-blue-600/15 transition-colors"
-        >
-          <Link2 size={20} className="text-blue-400 shrink-0" />
-          <div>
-            <p className="text-sm font-medium text-blue-300">Connect Withings</p>
-            <p className="text-xs text-zinc-400 mt-0.5">Sync your scale automatically in Settings</p>
-          </div>
-        </button>
+      {showSetup && (
+        <SetupChecklist
+          profile={profile}
+          measurementCount={measurements.length}
+          withingsConnected={withingsConnected}
+          onOpenProfile={onOpenProfile}
+          onNavigateToSettings={onNavigateToSettings}
+        />
       )}
 
       <DashboardWidgets measurements={measurements} profile={profile} />

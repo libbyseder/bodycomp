@@ -44,8 +44,10 @@ export function useWithingsConnection() {
   }, [user?.id])
 
   useEffect(() => {
-    refetch()
-  }, [refetch])
+    setConnected(false)
+    setLoading(!!user)
+    void refetch()
+  }, [refetch, user?.id])
 
   return { connected, loading, refetch }
 }

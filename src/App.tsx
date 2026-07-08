@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from './lib/supabase'
 import { apiUrl } from './lib/apiBase'
 import { registerWithingsDeepLinkHandler } from './lib/withingsOAuth'
@@ -23,14 +23,22 @@ import { useWithingsConnection } from './hooks/useWithingsConnection'
 import type { TabId } from './types/navigation'
 import toast, { Toaster } from 'react-hot-toast'
 
-function Dashboard() {
+function AuthenticatedDashboard() {
   const { user, signOut } = useAuth()
-  const { measurements, deleteMeasurement, refetch } = useMeasurements()
-  const { profile, refetchProfile } = useProfile()
+  const { measurements, loading: measurementsLoading, deleteMeasurement, refetch } = useMeasurements()
+  const { profile, loading: profileLoading, refetchProfile } = useProfile()
   const { connected: withingsConnected, loading: withingsLoading, refetch: refetchWithings } = useWithingsConnection()
 
+  const safeProfile = useMemo(
+    () => (profile?.id === user?.id ? profile : null),
+    [profile, user?.id]
+  )
+  const safeMeasurements = useMemo(
+    () => measurements.filter((m) => m.user_id === user?.id),
+    [measurements, user?.id]
+  )
+
   const [activeTab, setActiveTab] = useState<TabId>('home')
-  const [showAuthModal, setShowAuthModal] = useState(false)
   const [showQuickLog, setShowQuickLog] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
 
@@ -144,23 +152,7 @@ function Dashboard() {
   }
 
   const showFab = activeTab === 'home' || activeTab === 'log'
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-zinc-950 text-zinc-200 flex items-center justify-center px-4">
-        <div className="text-center max-w-lg flex flex-col items-center">
-          <BodyTrendBrand className="mb-8 justify-center" />
-          <button
-            onClick={() => setShowAuthModal(true)}
-            className="px-8 py-3 bg-cyan-500 hover:bg-cyan-600 rounded-2xl font-medium"
-          >
-            Get Started
-          </button>
-        </div>
-        <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
-      </div>
-    )
-  }
+  const dataLoading = profileLoading || measurementsLoading
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-200">
@@ -168,29 +160,32 @@ function Dashboard() {
         <DashboardHeader
           withingsConnected={withingsConnected}
           withingsLoading={withingsLoading}
-          measurementCount={measurements.length}
+          measurementCount={safeMeasurements.length}
           onOpenSettings={() => setActiveTab('settings')}
         />
 
         {activeTab === 'home' && (
           <HomeTab
-            measurements={measurements}
-            profile={profile}
+            measurements={safeMeasurements}
+            profile={safeProfile}
+            profileLoading={profileLoading}
+            measurementsLoading={measurementsLoading}
             withingsConnected={withingsConnected}
+            onOpenProfile={() => setShowProfile(true)}
             onNavigateToLog={() => setActiveTab('log')}
             onNavigateToSettings={() => setActiveTab('settings')}
             onNavigateToTrends={() => setActiveTab('trends')}
           />
         )}
 
-        {activeTab === 'trends' && (
-          <TrendsTab measurements={measurements} profile={profile} />
+        {activeTab === 'trends' && !dataLoading && (
+          <TrendsTab measurements={safeMeasurements} profile={safeProfile} />
         )}
 
-        {activeTab === 'log' && (
+        {activeTab === 'log' && !dataLoading && (
           <LogTab
-            measurements={measurements}
-            profile={profile}
+            measurements={safeMeasurements}
+            profile={safeProfile}
             onDelete={deleteMeasurement}
             onRefresh={refetch}
             onQuickLog={() => setShowQuickLog(true)}
@@ -200,7 +195,7 @@ function Dashboard() {
         {activeTab === 'settings' && (
           <SettingsTab
             refetch={refetch}
-            measurementCount={measurements.length}
+            measurementCount={safeMeasurements.length}
             onProfile={() => setShowProfile(true)}
             onSignOut={signOut}
             onDeleteAll={() => void handleDeleteAll()}
@@ -225,6 +220,30 @@ function Dashboard() {
       />
     </div>
   )
+}
+
+function Dashboard() {
+  const { user } = useAuth()
+  const [showAuthModal, setShowAuthModal] = useState(false)
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-zinc-950 text-zinc-200 flex items-center justify-center px-4">
+        <div className="text-center max-w-lg flex flex-col items-center">
+          <BodyTrendBrand className="mb-8 justify-center" />
+          <button
+            onClick={() => setShowAuthModal(true)}
+            className="px-8 py-3 bg-cyan-500 hover:bg-cyan-600 rounded-2xl font-medium"
+          >
+            Get Started
+          </button>
+        </div>
+        <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+      </div>
+    )
+  }
+
+  return <AuthenticatedDashboard key={user.id} />
 }
 
 function App() {
