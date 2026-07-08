@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from './lib/supabase'
 import { apiUrl } from './lib/apiBase'
 import { registerWithingsDeepLinkHandler } from './lib/withingsOAuth'
+import { registerAuthDeepLinkHandler } from './lib/oauthSignIn'
+import { runWithingsSync } from './lib/runWithingsSync'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import AuthModal from './components/AuthModal'
 import QuickLogModal from './components/QuickLogModal'
@@ -63,9 +65,17 @@ function Dashboard() {
       })
       const result = await response.json()
       if (result.success) {
-        toast.success('Withings connected successfully!')
+        toast.success('Withings connected — importing your scale history…')
         await refetchWithings()
         setActiveTab('settings')
+
+        const syncResult = await runWithingsSync(false)
+        if (syncResult.ok) {
+          toast.success(syncResult.message || 'Withings history imported!')
+          await refetch()
+        } else {
+          toast.error(syncResult.error || 'Connected, but the first sync failed. Tap Sync Now to retry.')
+        }
       } else {
         toast.error('Failed to save Withings connection')
         console.error(result)
@@ -74,7 +84,7 @@ function Dashboard() {
       console.error('Error saving Withings tokens:', error)
       toast.error('Something went wrong while connecting Withings')
     }
-  }, [refetchWithings])
+  }, [refetchWithings, refetch])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -92,6 +102,22 @@ function Dashboard() {
   useEffect(() => {
     return registerWithingsDeepLinkHandler(saveWithingsTokens)
   }, [saveWithingsTokens])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const authError = params.get('error_description') || params.get('error')
+    if (authError) {
+      toast.error(decodeURIComponent(authError.replace(/\+/g, ' ')))
+      window.history.replaceState({}, document.title, window.location.pathname)
+    }
+  }, [])
+
+  useEffect(() => {
+    return registerAuthDeepLinkHandler(
+      () => toast.success('Signed in successfully!'),
+      (message) => toast.error(message)
+    )
+  }, [])
 
   const handleDeleteAll = async () => {
     if (!confirm('Are you sure you want to delete ALL your measurements? This cannot be undone.')) {
@@ -174,6 +200,7 @@ function Dashboard() {
         {activeTab === 'settings' && (
           <SettingsTab
             refetch={refetch}
+            measurementCount={measurements.length}
             onProfile={() => setShowProfile(true)}
             onSignOut={signOut}
             onDeleteAll={() => void handleDeleteAll()}

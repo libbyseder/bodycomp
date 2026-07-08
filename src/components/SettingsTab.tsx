@@ -3,9 +3,11 @@ import { User, LogOut, Trash2, Link2 } from 'lucide-react'
 import ImportCSV from './ImportCSV'
 import ConnectWithingsButton from './ConnectWithingsButton'
 import WithingsSync from './WithingsSync'
+import PasskeySettings from './PasskeySettings'
 
 interface SettingsTabProps {
   refetch: () => Promise<void>
+  measurementCount: number
   onProfile: () => void
   onSignOut: () => void
   onDeleteAll: () => void
@@ -16,16 +18,22 @@ interface SettingsTabProps {
 function SettingsSection({
   title,
   children,
+  allowOverflow = false,
 }: {
   title: string
   children: ReactNode
+  allowOverflow?: boolean
 }) {
   return (
     <section className="mb-8">
       <h2 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3 px-1">
         {title}
       </h2>
-      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl overflow-hidden divide-y divide-zinc-800">
+      <div
+        className={`bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl divide-y divide-zinc-800 ${
+          allowOverflow ? 'overflow-visible' : 'overflow-hidden'
+        }`}
+      >
         {children}
       </div>
     </section>
@@ -46,6 +54,7 @@ function SettingsRow({
 
 export default function SettingsTab({
   refetch,
+  measurementCount,
   onProfile,
   onSignOut,
   onDeleteAll,
@@ -79,7 +88,7 @@ export default function SettingsTab({
         </SettingsRow>
       </SettingsSection>
 
-      <SettingsSection title="Connected Devices">
+      <SettingsSection title="Connected Devices" allowOverflow>
         <SettingsRow>
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2.5 rounded-xl bg-zinc-800 text-blue-400">
@@ -100,7 +109,13 @@ export default function SettingsTab({
               loading={withingsLoading}
               className="w-full"
             />
-            {withingsConnected && <WithingsSync refetch={refetch} fullWidth />}
+            {withingsConnected && (
+              <WithingsSync
+                refetch={refetch}
+                fullWidth
+                measurementCount={measurementCount}
+              />
+            )}
           </div>
         </SettingsRow>
       </SettingsSection>
@@ -109,6 +124,12 @@ export default function SettingsTab({
         <SettingsRow>
           <p className="text-sm text-zinc-400 mb-3">Import historical measurements from a CSV file.</p>
           <ImportCSV refetch={refetch} className="sm:w-auto" />
+        </SettingsRow>
+      </SettingsSection>
+
+      <SettingsSection title="Sign-in & Security">
+        <SettingsRow>
+          <PasskeySettings />
         </SettingsRow>
       </SettingsSection>
 

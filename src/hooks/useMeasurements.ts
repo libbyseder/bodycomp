@@ -40,7 +40,9 @@ export function useMeasurements() {
 
     if (user?.id !== userId) return
 
-    if (!error && data) {
+    if (error) {
+      console.error('Error fetching measurements:', error)
+    } else if (data) {
       setMeasurements(data)
     }
     setLoading(false)
@@ -98,7 +100,9 @@ export function useMeasurements() {
 
       if (cancelled) return
 
-      if (!error && data) {
+      if (error) {
+        console.error('Error fetching measurements:', error)
+      } else if (data) {
         setMeasurements(data)
       }
       setLoading(false)

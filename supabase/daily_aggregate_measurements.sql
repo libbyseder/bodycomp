@@ -68,3 +68,5 @@ CREATE TABLE IF NOT EXISTS withings_synced_grpids (
 );
 
 ALTER TABLE withings_synced_grpids ENABLE ROW LEVEL SECURITY;
+
+-- After running this migration, also run enable_rls_policies.sql to add RLS policies.

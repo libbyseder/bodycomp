@@ -19,6 +19,7 @@ import {
   getSmoothingWindow,
   getTrendPeriodLabel,
   TREND_PERIODS,
+  DEFAULT_TREND_PERIOD,
   type TrendPeriod,
 } from '../lib/movingAverage'
 import { goalLegendLabels } from '../lib/chartLegend'
@@ -41,6 +42,7 @@ interface SmoothedTrendsChartProps {
   title?: string
   subtitle?: string
   className?: string
+  defaultPeriod?: TrendPeriod
 }
 
 interface DailyPoint {
@@ -120,8 +122,9 @@ export default function SmoothedTrendsChart({
   title = 'Smoothed Trends',
   subtitle,
   className = 'mb-6 sm:mb-8',
+  defaultPeriod = DEFAULT_TREND_PERIOD,
 }: SmoothedTrendsChartProps) {
-  const [period, setPeriod] = useState<TrendPeriod>(7)
+  const [period, setPeriod] = useState<TrendPeriod>(defaultPeriod)
   const [showSettings, setShowSettings] = useState(false)
   const [showFfmiInfo, setShowFfmiInfo] = useState(false)
   const isMobile = useIsMobile()

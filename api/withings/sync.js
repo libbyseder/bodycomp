@@ -180,12 +180,15 @@ export default async function handler(req, res) {
     // Load existing synced grpids once (not per-reading queries)
     const syncedGrpids = new Set()
     if (!force) {
-      const { data: synced } = await supabase
+      const { data: synced, error: syncedError } = await supabase
         .from('withings_synced_grpids')
         .select('grpid')
         .eq('user_id', user.id)
+      if (syncedError) {
+        throw new Error(`Failed to load sync history: ${syncedError.message}`)
+      }
       for (const row of synced || []) {
-        syncedGrpids.add(row.grpid)
+        syncedGrpids.add(String(row.grpid))
       }
     }
 
@@ -222,7 +225,8 @@ export default async function handler(req, res) {
         continue
       }
 
-      if (!force && syncedGrpids.has(reading.grpid)) {
+      const grpidKey = String(reading.grpid)
+      if (!force && syncedGrpids.has(grpidKey)) {
         skippedAlreadySynced++
         continue
       }
@@ -244,8 +248,8 @@ export default async function handler(req, res) {
 
       byDate.set(reading.date, merged)
       lastLoggedAt.set(reading.date, reading.loggedAt)
-      newGrpids.push(reading.grpid)
-      syncedGrpids.add(reading.grpid)
+      newGrpids.push(grpidKey)
+      syncedGrpids.add(grpidKey)
       newReadingsMerged++
     }
 
@@ -278,14 +282,16 @@ export default async function handler(req, res) {
     for (let i = 0; i < newGrpids.length; i += BATCH) {
       const batch = newGrpids.slice(i, i + BATCH).map((grpid) => ({
         user_id: user.id,
-        grpid,
+        grpid: Number(grpid),
       }))
-      await supabase.from('withings_synced_grpids').upsert(batch, {
+      const { error: grpidError } = await supabase.from('withings_synced_grpids').upsert(batch, {
         onConflict: 'user_id,grpid',
       })
+      if (grpidError) errors.push({ message: `Sync history: ${grpidError.message}` })
     }
 
     const daysUpdated = lastLoggedAt.size
+    const measurementsSaved = toUpsert.length
 
     if (errors.length > 0) {
       return res.status(500).json({
@@ -296,19 +302,30 @@ export default async function handler(req, res) {
       })
     }
 
+    let message =
+      `Fetched ${allGroups.length} Withings readings. ` +
+      `Merged ${newReadingsMerged} logs across ${daysUpdated} day${daysUpdated === 1 ? '' : 's'}.`
+
+    if (allGroups.length === 0) {
+      message = 'No Withings readings found. Try weighing in on your scale, then sync again.'
+    } else if (measurementsSaved === 0 && skippedAlreadySynced > 0) {
+      message =
+        `All ${skippedAlreadySynced} readings were already synced. ` +
+        'Try Advanced → Full re-sync if your data looks incomplete.'
+    }
+
     return res.status(200).json({
       success: true,
       found: allGroups.length,
       newReadingsMerged,
       daysUpdated,
+      measurementsSaved,
       skippedAlreadySynced,
       skippedNoData,
       skippedNoWeight,
       force,
       errors: errors.slice(0, 5),
-      message:
-        `Fetched ${allGroups.length} Withings readings. ` +
-        `Merged ${newReadingsMerged} logs across ${daysUpdated} day${daysUpdated === 1 ? '' : 's'}.`,
+      message,
     })
   } catch (error) {
     console.error(error)

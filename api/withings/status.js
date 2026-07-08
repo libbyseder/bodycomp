@@ -1,9 +1,6 @@
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseAdmin } from '../../server/withingsTokens.js'
 
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+const supabase = getSupabaseAdmin()
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {

@@ -2,6 +2,8 @@ export type TrendPeriod = 7 | 30 | 90 | 365 | 'all'
 
 export const TREND_PERIODS: TrendPeriod[] = [7, 30, 90, 365, 'all']
 
+export const DEFAULT_TREND_PERIOD: TrendPeriod = 90
+
 export function getTrendPeriodLabel(period: TrendPeriod): string {
   if (period === 'all') return 'All Time'
   return `Last ${period} Days`

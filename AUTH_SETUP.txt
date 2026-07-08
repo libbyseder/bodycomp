@@ -1,0 +1,37 @@
+Supabase + Vercel setup for Google, Apple, and Passkey sign-in
+================================================================
+
+1. Supabase Dashboard → Authentication → URL Configuration
+   Add these Redirect URLs:
+   - https://bodycomp-goals.vercel.app
+   - http://localhost:5173
+   - recomptrack://auth/callback
+
+2. Supabase Dashboard → Authentication → Providers
+   - Enable Google (add OAuth client ID/secret from Google Cloud Console)
+   - Enable Apple (add Services ID, team ID, key ID, private key)
+
+3. Supabase Dashboard → Authentication → Passkeys
+   - Enable Passkey authentication
+   - Relying Party ID: bodycomp-goals.vercel.app
+   - Relying Party Display Name: BodyTrend
+   - Relying Party Origins:
+     https://bodycomp-goals.vercel.app
+     http://localhost:5173
+
+4. Google Cloud Console (for Google sign-in)
+   - Create OAuth 2.0 Web client
+   - Authorized redirect URI:
+     https://wxevzijnhtczdvlmppro.supabase.co/auth/v1/callback
+
+5. Apple Developer (for Apple sign-in)
+   - Create a Services ID with Sign in with Apple enabled
+   - Return URL:
+     https://wxevzijnhtczdvlmppro.supabase.co/auth/v1/callback
+   - For iOS native app: add Associated Domain
+     webcredentials:wxevzijnhtczdvlmppro.supabase.co
+
+6. Passkey flow
+   - Sign up / sign in with Google, Apple, or email first
+   - Then go to Settings → Sign-in & Security → Add Passkey
+   - Next time, use "Sign in with Passkey" on the login screen
