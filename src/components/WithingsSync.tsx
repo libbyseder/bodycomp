@@ -6,12 +6,14 @@ import { supabase } from '../lib/supabase'
 
 interface WithingsSyncProps {
   refetch: () => Promise<void>
+  onAuthFailure?: () => void | Promise<void>
   fullWidth?: boolean
   measurementCount?: number
 }
 
 export default function WithingsSync({
   refetch,
+  onAuthFailure,
   fullWidth = false,
   measurementCount = 0,
 }: WithingsSyncProps) {
@@ -41,7 +43,11 @@ export default function WithingsSync({
       const result = await runWithingsSync(force)
 
       if (!result.ok) {
-        toast.error(result.error || 'Sync failed')
+        const message = result.error || 'Sync failed'
+        toast.error(message, { duration: message.includes('Connect Withings') ? 8000 : 4000 })
+        if (message.includes('Connect Withings')) {
+          await onAuthFailure?.()
+        }
         return
       }
 

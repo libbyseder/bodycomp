@@ -9,7 +9,12 @@ type SaveTokensFn = (
   withings_user_id: string
 ) => Promise<void>
 
-export function registerWithingsDeepLinkHandler(saveTokens: SaveTokensFn): () => void {
+type ConnectedFn = () => Promise<void>
+
+export function registerWithingsDeepLinkHandler(
+  onConnected: ConnectedFn,
+  saveTokens?: SaveTokensFn
+): () => void {
   if (!Capacitor.isNativePlatform()) {
     return () => {}
   }
@@ -33,19 +38,22 @@ export function registerWithingsDeepLinkHandler(saveTokens: SaveTokensFn): () =>
 
     if (params.get('withings_success') !== 'true') return
 
-    const access_token = params.get('access_token')
-    const refresh_token = params.get('refresh_token')
-    const withings_user_id = params.get('withings_user_id')
-
-    if (!access_token || !refresh_token || !withings_user_id) return
-
     try {
       await Browser.close()
     } catch {
       // Browser may already be closed
     }
 
-    await saveTokens(access_token, refresh_token, withings_user_id)
+    const access_token = params.get('access_token')
+    const refresh_token = params.get('refresh_token')
+    const withings_user_id = params.get('withings_user_id')
+
+    if (access_token && refresh_token && withings_user_id && saveTokens) {
+      await saveTokens(access_token, refresh_token, withings_user_id)
+      return
+    }
+
+    await onConnected()
   }
 
   const listeners: Array<{ remove: () => void }> = []

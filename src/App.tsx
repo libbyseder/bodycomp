@@ -48,6 +48,20 @@ function AuthenticatedDashboard() {
     setActiveTab('home')
   }, [user?.id])
 
+  const handleWithingsConnected = useCallback(async () => {
+    toast.success('Withings connected — importing your scale history…')
+    await refetchWithings()
+    setActiveTab('settings')
+
+    const syncResult = await runWithingsSync(false)
+    if (syncResult.ok) {
+      toast.success(syncResult.message || 'Withings history imported!')
+      await refetch()
+    } else {
+      toast.error(syncResult.error || 'Connected, but the first sync failed. Tap Sync Now to retry.')
+    }
+  }, [refetchWithings, refetch])
+
   const saveWithingsTokens = useCallback(async (
     access_token: string,
     refresh_token: string,
@@ -73,17 +87,7 @@ function AuthenticatedDashboard() {
       })
       const result = await response.json()
       if (result.success) {
-        toast.success('Withings connected — importing your scale history…')
-        await refetchWithings()
-        setActiveTab('settings')
-
-        const syncResult = await runWithingsSync(false)
-        if (syncResult.ok) {
-          toast.success(syncResult.message || 'Withings history imported!')
-          await refetch()
-        } else {
-          toast.error(syncResult.error || 'Connected, but the first sync failed. Tap Sync Now to retry.')
-        }
+        await handleWithingsConnected()
       } else {
         toast.error('Failed to save Withings connection')
         console.error(result)
@@ -92,7 +96,7 @@ function AuthenticatedDashboard() {
       console.error('Error saving Withings tokens:', error)
       toast.error('Something went wrong while connecting Withings')
     }
-  }, [refetchWithings, refetch])
+  }, [handleWithingsConnected])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -102,14 +106,16 @@ function AuthenticatedDashboard() {
       const withings_user_id = params.get('withings_user_id')
       if (access_token && refresh_token && withings_user_id) {
         void saveWithingsTokens(access_token, refresh_token, withings_user_id)
+      } else {
+        void handleWithingsConnected()
       }
       window.history.replaceState({}, document.title, window.location.pathname)
     }
-  }, [saveWithingsTokens])
+  }, [saveWithingsTokens, handleWithingsConnected])
 
   useEffect(() => {
-    return registerWithingsDeepLinkHandler(saveWithingsTokens)
-  }, [saveWithingsTokens])
+    return registerWithingsDeepLinkHandler(handleWithingsConnected, saveWithingsTokens)
+  }, [handleWithingsConnected, saveWithingsTokens])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -195,6 +201,7 @@ function AuthenticatedDashboard() {
         {activeTab === 'settings' && (
           <SettingsTab
             refetch={refetch}
+            refetchWithings={refetchWithings}
             measurementCount={safeMeasurements.length}
             onProfile={() => setShowProfile(true)}
             onSignOut={signOut}

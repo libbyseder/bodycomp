@@ -1,4 +1,4 @@
-import { getSupabaseAdmin } from '../../server/withingsTokens.js'
+import { getSupabaseAdmin, saveWithingsTokensForUser } from '../../server/withingsTokens.js'
 
 const supabase = getSupabaseAdmin()
 
@@ -18,40 +18,11 @@ export default async function handler(req, res) {
   const { access_token, refresh_token, withings_user_id } = req.body
 
   try {
-    // Check if tokens already exist for this user
-    const { data: existing } = await supabase
-      .from('withings_tokens')
-      .select('id')
-      .eq('user_id', user.id)
-      .single()
-
-    if (existing) {
-      // Update existing row
-      const { error } = await supabase
-        .from('withings_tokens')
-        .update({
-          access_token,
-          refresh_token,
-          withings_user_id,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', user.id)
-
-      if (error) throw error
-    } else {
-      // Insert new row
-      const { error } = await supabase
-        .from('withings_tokens')
-        .insert({
-          user_id: user.id,
-          access_token,
-          refresh_token,
-          withings_user_id,
-          updated_at: new Date().toISOString(),
-        })
-
-      if (error) throw error
-    }
+    await saveWithingsTokensForUser(supabase, user.id, {
+      access_token,
+      refresh_token,
+      withings_user_id,
+    })
 
     return res.status(200).json({ success: true })
   } catch (error) {

@@ -7,6 +7,7 @@ import PasskeySettings from './PasskeySettings'
 
 interface SettingsTabProps {
   refetch: () => Promise<void>
+  refetchWithings?: () => void | Promise<void>
   measurementCount: number
   onProfile: () => void
   onSignOut: () => void
@@ -54,6 +55,7 @@ function SettingsRow({
 
 export default function SettingsTab({
   refetch,
+  refetchWithings,
   measurementCount,
   onProfile,
   onSignOut,
@@ -112,6 +114,7 @@ export default function SettingsTab({
             {withingsConnected && (
               <WithingsSync
                 refetch={refetch}
+                onAuthFailure={refetchWithings}
                 fullWidth
                 measurementCount={measurementCount}
               />

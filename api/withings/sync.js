@@ -1,6 +1,6 @@
 import {
   getSupabaseAdmin,
-  getValidWithingsAccessToken,
+  getWithingsTokenRow,
   isWithingsAuthError,
   refreshWithingsAccessToken,
 } from '../../server/withingsTokens.js'
@@ -143,15 +143,7 @@ export default async function handler(req, res) {
 
   let tokenData
   try {
-    const { data } = await supabase
-      .from('withings_tokens')
-      .select('*')
-      .eq('user_id', user.id)
-      .single()
-    tokenData = data
-    if (!tokenData?.access_token) {
-      return res.status(400).json({ error: 'Withings not connected' })
-    }
+    tokenData = await getWithingsTokenRow(supabase, user.id)
   } catch (error) {
     return res.status(400).json({ error: error.message || 'Withings not connected' })
   }
@@ -166,7 +158,7 @@ export default async function handler(req, res) {
   try {
     // 10 years of history
     const startDate = Math.floor(Date.now() / 1000) - (10 * 365 * 24 * 60 * 60)
-    let accessToken = await getValidWithingsAccessToken(supabase, user.id)
+    let accessToken = tokenData.access_token
 
     let allGroups
     try {
