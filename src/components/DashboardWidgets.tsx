@@ -1,5 +1,6 @@
 import type { Measurement, Profile } from '../types'
 import {
+  progressFromBaseline,
   progressTowardHigherGoal,
   progressTowardLowerGoal,
   progressTowardWeightGoal,
@@ -15,6 +16,7 @@ export default function DashboardWidgets({ measurements, profile }: DashboardWid
 
   if (measurements.length === 0) return null
 
+  const earliest = measurements[measurements.length - 1]
   const latest = measurements[0]
   const currentWeight = latest.weight
   const currentBf = latest.body_fat ?? 0
@@ -27,6 +29,12 @@ export default function DashboardWidgets({ measurements, profile }: DashboardWid
     : null
   const currentNormalizedFfmi = heightForCalc
     ? calculateNormalizedFFMI(latest.weight, latest.body_fat, heightForCalc)
+    : null
+  const baselineFfmi = heightForCalc
+    ? calculateFFMI(earliest.weight, earliest.body_fat, heightForCalc)
+    : null
+  const baselineNormalizedFfmi = heightForCalc
+    ? calculateNormalizedFFMI(earliest.weight, earliest.body_fat, heightForCalc)
     : null
 
   // Support both old and new column names
@@ -43,14 +51,19 @@ export default function DashboardWidgets({ measurements, profile }: DashboardWid
     ? progressTowardLowerGoal(currentBf, bfGoal)
     : 0
 
-  const ffmiProgress = ffmiGoal && currentFfmi
-    ? progressTowardHigherGoal(currentFfmi, ffmiGoal)
-    : 0
+  const ffmiProgress =
+    ffmiGoal && currentFfmi && baselineFfmi != null
+      ? progressFromBaseline(currentFfmi, ffmiGoal, baselineFfmi)
+      : ffmiGoal && currentFfmi
+        ? progressTowardHigherGoal(currentFfmi, ffmiGoal)
+        : 0
 
   const normalizedFfmiProgress =
-    normalizedFfmiGoal && currentNormalizedFfmi
-      ? progressTowardHigherGoal(currentNormalizedFfmi, normalizedFfmiGoal)
-      : 0
+    normalizedFfmiGoal && currentNormalizedFfmi && baselineNormalizedFfmi != null
+      ? progressFromBaseline(currentNormalizedFfmi, normalizedFfmiGoal, baselineNormalizedFfmi)
+      : normalizedFfmiGoal && currentNormalizedFfmi
+        ? progressTowardHigherGoal(currentNormalizedFfmi, normalizedFfmiGoal)
+        : 0
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">

@@ -15,7 +15,9 @@ export default function GoalPredictionBanner({
 
   if (predictions.length === 0) return null
 
-  const primary = predictions[0]
+  const onTrackPredictions = predictions.filter((p) => p.onTrack)
+  const primary = onTrackPredictions[0] ?? predictions[0]
+  const secondary = predictions.filter((p) => p.metric !== primary.metric)
 
   return (
     <div className="mb-6 p-4 sm:p-5 bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl">
@@ -32,9 +34,9 @@ export default function GoalPredictionBanner({
             {primary.onTrack ? 'On track' : 'Trend check'}
           </p>
           <p className="text-sm text-zinc-400 mt-0.5">{primary.message}</p>
-          {predictions.length > 1 && (
+          {secondary.length > 0 && (
             <ul className="mt-3 space-y-1">
-              {predictions.slice(1).map((p) => (
+              {secondary.map((p) => (
                 <li key={p.metric} className="text-xs text-zinc-500 flex items-center gap-1.5">
                   <TrendingUp size={12} className="shrink-0 text-zinc-600" />
                   {p.message}

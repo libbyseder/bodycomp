@@ -20,3 +20,13 @@ export function progressTowardHigherGoal(current: number, goal: number): number 
   if (goal <= 0) return 0
   return Math.max(0, Math.min(100, (current / goal) * 100))
 }
+
+/** Progress from a starting baseline toward a higher goal (journey-based). */
+export function progressFromBaseline(current: number, goal: number, baseline: number): number {
+  if (goal <= baseline) {
+    return current >= goal ? 100 : 0
+  }
+  if (current >= goal) return 100
+  if (current <= baseline) return 0
+  return Math.max(0, Math.min(100, ((current - baseline) / (goal - baseline)) * 100))
+}
