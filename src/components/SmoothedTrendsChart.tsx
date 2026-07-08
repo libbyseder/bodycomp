@@ -68,6 +68,39 @@ interface VisibilitySettings {
   normalizedFfmiGoal: boolean
 }
 
+const CHART_OPTION_COLUMNS: {
+  title: string
+  options: { key: keyof VisibilitySettings; label: string }[]
+}[] = [
+  {
+    title: 'Daily',
+    options: [
+      { key: 'rawWeight', label: 'Daily weight' },
+      { key: 'rawBodyFat', label: 'Daily body fat' },
+      { key: 'rawFfmi', label: 'Daily FFMI' },
+      { key: 'rawNormalizedFfmi', label: 'Daily norm. FFMI' },
+    ],
+  },
+  {
+    title: 'Trend',
+    options: [
+      { key: 'weightTrend', label: 'Weight trend' },
+      { key: 'bodyFatTrend', label: 'Body fat trend' },
+      { key: 'ffmiTrend', label: 'FFMI trend' },
+      { key: 'normalizedFfmiTrend', label: 'Norm. FFMI trend' },
+    ],
+  },
+  {
+    title: 'Goal',
+    options: [
+      { key: 'weightGoal', label: 'Weight goal' },
+      { key: 'bodyFatGoal', label: 'Body fat goal' },
+      { key: 'ffmiGoal', label: 'FFMI goal' },
+      { key: 'normalizedFfmiGoal', label: 'Norm. FFMI goal' },
+    ],
+  },
+]
+
 function useIsMobile(breakpoint = 640) {
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== 'undefined' && window.innerWidth < breakpoint
@@ -600,32 +633,26 @@ export default function SmoothedTrendsChart({
       {showSettings && (
         <div className="mb-6 p-4 bg-zinc-800 rounded-2xl border border-zinc-700">
           <div className="text-sm font-medium mb-3">Toggle Series & Goals</div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 text-sm">
-            {(
-              [
-                ['rawWeight', 'Daily weight'],
-                ['weightTrend', 'Weight trend'],
-                ['weightGoal', 'Weight goal'],
-                ['rawBodyFat', 'Daily body fat'],
-                ['bodyFatTrend', 'Body fat trend'],
-                ['bodyFatGoal', 'Body fat goal'],
-                ['rawFfmi', 'Daily FFMI'],
-                ['ffmiTrend', 'FFMI trend'],
-                ['normalizedFfmiTrend', 'Norm. FFMI trend'],
-                ['rawNormalizedFfmi', 'Daily norm. FFMI'],
-                ['ffmiGoal', 'FFMI goal'],
-                ['normalizedFfmiGoal', 'Norm. FFMI goal'],
-              ] as const
-            ).map(([key, label]) => (
-              <label key={key} className="flex items-center gap-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={visibility[key]}
-                  onChange={() => toggle(key)}
-                  className="accent-emerald-500"
-                />
-                {label}
-              </label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+            {CHART_OPTION_COLUMNS.map((column) => (
+              <div key={column.title}>
+                <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">
+                  {column.title}
+                </p>
+                <div className="space-y-2">
+                  {column.options.map(({ key, label }) => (
+                    <label key={key} className="flex items-center gap-x-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={visibility[key]}
+                        onChange={() => toggle(key)}
+                        className="accent-emerald-500"
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </div>
