@@ -611,8 +611,8 @@ export default function SmoothedTrendsChart({
                 ['bodyFatGoal', 'Body fat goal'],
                 ['rawFfmi', 'Daily FFMI'],
                 ['ffmiTrend', 'FFMI trend'],
-                ['rawNormalizedFfmi', 'Daily norm. FFMI'],
                 ['normalizedFfmiTrend', 'Norm. FFMI trend'],
+                ['rawNormalizedFfmi', 'Daily norm. FFMI'],
                 ['ffmiGoal', 'FFMI goal'],
                 ['normalizedFfmiGoal', 'Norm. FFMI goal'],
               ] as const
