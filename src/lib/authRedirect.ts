@@ -15,10 +15,4 @@ export function getAuthRedirectUrl(): string {
   return PRODUCTION_ORIGIN
 }
 
-export function isPasskeySupported(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    window.PublicKeyCredential !== undefined &&
-    typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function'
-  )
-}
+export { isPasskeySupported } from './passkey'

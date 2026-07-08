@@ -11,13 +11,14 @@ Supabase + Vercel setup for Google, Apple, and Passkey sign-in
    - Enable Google (add OAuth client ID/secret from Google Cloud Console)
    - Enable Apple (add Services ID, team ID, key ID, private key)
 
-3. Supabase Dashboard → Authentication → Passkeys
-   - Enable Passkey authentication
+3. Supabase Dashboard → Authentication → Passkeys  *** REQUIRED FOR PASSKEYS ***
+   - Turn ON "Enable Passkey authentication" (without this, passkeys return 404)
    - Relying Party ID: bodycomp-goals.vercel.app
    - Relying Party Display Name: BodyTrend
-   - Relying Party Origins:
+   - Relying Party Origins (one per line):
      https://bodycomp-goals.vercel.app
      http://localhost:5173
+   - Save, then test: Settings → Sign-in & Security → Add Passkey
 
 4. Google Cloud Console (for Google sign-in)
    - Create OAuth 2.0 Web client

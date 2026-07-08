@@ -2,7 +2,8 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
 import { signInWithProvider } from '../lib/oauthSignIn'
-import type { User } from '@supabase/supabase-js'
+import { formatPasskeyError } from '../lib/passkey'
+import type { Session, User } from '@supabase/supabase-js'
 import toast from 'react-hot-toast'
 
 interface AuthContextType {
@@ -12,7 +13,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: any }>
   signInWithGoogle: () => Promise<{ error: any }>
   signInWithApple: () => Promise<{ error: any }>
-  signInWithPasskey: () => Promise<{ error: any }>
+  signInWithPasskey: () => Promise<{ error: any; session: Session | null }>
   registerPasskey: () => Promise<{ error: any }>
   signOut: () => Promise<void>
 }
@@ -108,25 +109,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.auth.signInWithPasskey()
 
     if (error) {
-      if (error.message !== 'The operation either timed out or was not allowed.') {
-        toast.error(error.message)
+      const message = formatPasskeyError(error)
+      if (!message.includes('cancelled')) {
+        toast.error(message, { duration: 6000 })
       }
-      return { error }
+      return { error, session: null }
     }
 
-    if (data?.session) {
-      toast.success(`Welcome back${data.user?.email ? `, ${data.user.email}` : ''}!`)
+    const session = data?.session ?? null
+    if (!session) {
+      const message = 'Passkey sign-in completed but no session was created.'
+      toast.error(message)
+      return { error: new Error(message), session: null }
     }
 
-    return { error: null }
+    toast.success(`Welcome back${data.user?.email ? `, ${data.user.email}` : ''}!`)
+    return { error: null, session }
   }
 
   const registerPasskey = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      const message = 'Sign in first before adding a passkey.'
+      toast.error(message)
+      return { error: new Error(message) }
+    }
+
     const { data, error } = await supabase.auth.registerPasskey()
 
     if (error) {
-      if (error.message !== 'The operation either timed out or was not allowed.') {
-        toast.error(error.message)
+      const message = formatPasskeyError(error)
+      if (!message.includes('cancelled')) {
+        toast.error(message, { duration: 6000 })
       }
       return { error }
     }

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { KeyRound, Plus, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { isPasskeySupported } from '../lib/authRedirect'
+import { formatPasskeyError, PASSKEY_SETUP_STEPS } from '../lib/passkey'
 import { useAuth } from '../contexts/AuthContext'
+import { usePasskeyAvailability } from '../hooks/usePasskeyAvailability'
 import toast from 'react-hot-toast'
 
 interface PasskeyItem {
@@ -14,31 +15,44 @@ interface PasskeyItem {
 
 export default function PasskeySettings() {
   const { registerPasskey } = useAuth()
+  const { browserSupported, secureContext, serverEnabled, ready, loading: availabilityLoading } =
+    usePasskeyAvailability()
   const [passkeys, setPasskeys] = useState<PasskeyItem[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
-  const supported = isPasskeySupported()
 
   const fetchPasskeys = useCallback(async () => {
+    if (!ready) {
+      setPasskeys([])
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
 
     const { data, error } = await supabase.auth.passkey.list()
 
     if (error) {
       console.error('Failed to list passkeys:', error)
+      toast.error(formatPasskeyError(error), { duration: 6000 })
       setPasskeys([])
     } else {
       setPasskeys(data ?? [])
     }
 
     setLoading(false)
-  }, [])
+  }, [ready])
 
   useEffect(() => {
     void fetchPasskeys()
   }, [fetchPasskeys])
 
   const handleAdd = async () => {
+    if (!ready) {
+      toast.error('Passkeys are not available yet. See setup steps below.', { duration: 6000 })
+      return
+    }
+
     setBusy(true)
     const { error } = await registerPasskey()
     setBusy(false)
@@ -59,7 +73,7 @@ export default function PasskeySettings() {
     setBusy(false)
 
     if (error) {
-      toast.error(error.message)
+      toast.error(formatPasskeyError(error), { duration: 6000 })
       return
     }
 
@@ -67,7 +81,16 @@ export default function PasskeySettings() {
     await fetchPasskeys()
   }
 
-  if (!supported) {
+  if (!secureContext) {
+    return (
+      <p className="text-sm text-zinc-500">
+        Passkeys require a secure connection (HTTPS). Open the app at{' '}
+        <span className="text-zinc-300">https://bodycomp-goals.vercel.app</span>.
+      </p>
+    )
+  }
+
+  if (!browserSupported) {
     return (
       <p className="text-sm text-zinc-500">
         Passkeys are not supported in this browser.
@@ -88,6 +111,17 @@ export default function PasskeySettings() {
           </p>
         </div>
       </div>
+
+      {!availabilityLoading && serverEnabled === false && (
+        <div className="mb-4 rounded-2xl border border-amber-600/40 bg-amber-950/30 px-4 py-3 text-sm text-amber-100/90">
+          <p className="font-medium text-amber-200 mb-2">Passkeys not enabled in Supabase</p>
+          <ol className="list-decimal list-inside space-y-1 text-xs text-amber-100/80">
+            {PASSKEY_SETUP_STEPS.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+        </div>
+      )}
 
       {loading ? (
         <p className="text-sm text-zinc-500 mb-4">Loading passkeys…</p>
@@ -118,16 +152,16 @@ export default function PasskeySettings() {
             </li>
           ))}
         </ul>
-      ) : (
+      ) : ready ? (
         <p className="text-sm text-zinc-500 mb-4">
           No passkeys yet. Add one to sign in without a password.
         </p>
-      )}
+      ) : null}
 
       <button
         type="button"
         onClick={() => void handleAdd()}
-        disabled={busy}
+        disabled={busy || !ready}
         className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-sm bg-violet-600 hover:bg-violet-700 text-white transition-colors disabled:opacity-50 w-full sm:w-auto"
       >
         <Plus size={16} />
