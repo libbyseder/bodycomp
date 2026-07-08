@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -23,6 +23,12 @@ import {
   type TrendPeriod,
 } from '../lib/movingAverage'
 import { goalLegendLabels } from '../lib/chartLegend'
+import {
+  loadGoalPathVisibility,
+  saveGoalPathVisibility,
+  type GoalPathVisibilitySettings,
+} from '../lib/goalPathChartVisibility'
+import { useAuth } from '../contexts/AuthContext'
 import FfmiCalcInfo, { FfmiInfoButton } from './FfmiCalcInfo'
 
 ChartJS.register(
@@ -53,24 +59,9 @@ interface DailyPoint {
   normalized_ffmi: number | null
 }
 
-interface VisibilitySettings {
-  rawWeight: boolean
-  weightTrend: boolean
-  rawBodyFat: boolean
-  bodyFatTrend: boolean
-  rawFfmi: boolean
-  ffmiTrend: boolean
-  rawNormalizedFfmi: boolean
-  normalizedFfmiTrend: boolean
-  weightGoal: boolean
-  bodyFatGoal: boolean
-  ffmiGoal: boolean
-  normalizedFfmiGoal: boolean
-}
-
 const CHART_OPTION_COLUMNS: {
   title: string
-  options: { key: keyof VisibilitySettings; label: string }[]
+  options: { key: keyof GoalPathVisibilitySettings; label: string }[]
 }[] = [
   {
     title: 'Daily',
@@ -157,25 +148,36 @@ export default function SmoothedTrendsChart({
   className = 'mb-6 sm:mb-8',
   defaultPeriod = DEFAULT_TREND_PERIOD,
 }: SmoothedTrendsChartProps) {
+  const { user } = useAuth()
   const [period, setPeriod] = useState<TrendPeriod>(defaultPeriod)
   const [showSettings, setShowSettings] = useState(false)
   const [showFfmiInfo, setShowFfmiInfo] = useState(false)
   const isMobile = useIsMobile()
 
-  const [visibility, setVisibility] = useState<VisibilitySettings>({
-    rawWeight: false,
-    weightTrend: true,
-    rawBodyFat: false,
-    bodyFatTrend: true,
-    rawFfmi: false,
-    ffmiTrend: true,
-    rawNormalizedFfmi: false,
-    normalizedFfmiTrend: false,
-    weightGoal: true,
-    bodyFatGoal: true,
-    ffmiGoal: true,
-    normalizedFfmiGoal: true,
-  })
+  const [visibility, setVisibilityState] = useState<GoalPathVisibilitySettings>(() =>
+    loadGoalPathVisibility(user?.id)
+  )
+
+  useEffect(() => {
+    setVisibilityState(loadGoalPathVisibility(user?.id))
+  }, [user?.id])
+
+  const setVisibility = useCallback(
+    (
+      updater:
+        | GoalPathVisibilitySettings
+        | ((current: GoalPathVisibilitySettings) => GoalPathVisibilitySettings)
+    ) => {
+      setVisibilityState((current) => {
+        const next = typeof updater === 'function' ? updater(current) : updater
+        if (user?.id) {
+          saveGoalPathVisibility(user.id, next)
+        }
+        return next
+      })
+    },
+    [user?.id]
+  )
 
   const allDailyPoints = useMemo(
     () => buildDailyPoints(measurements, profile?.height_inches),
@@ -482,7 +484,7 @@ export default function SmoothedTrendsChart({
     },
   }
 
-  const toggle = (key: keyof VisibilitySettings) =>
+  const toggle = (key: keyof GoalPathVisibilitySettings) =>
     setVisibility((current) => ({ ...current, [key]: !current[key] }))
 
   const allDataOn =
