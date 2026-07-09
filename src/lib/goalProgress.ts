@@ -10,6 +10,14 @@ export function progressTowardHigherGoal(current: number, goal: number): number 
   return Math.max(0, Math.min(100, (current / goal) * 100))
 }
 
+/** Journey start weight: peak recorded for a cut, trough recorded for a bulk. */
+export function weightBaselineForGoal(weights: number[], goal: number, current: number): number {
+  if (weights.length === 0) return current
+  if (goal < current) return Math.max(...weights)
+  if (goal > current) return Math.min(...weights)
+  return current
+}
+
 /** Journey-based progress from a starting baseline toward goal (gain or loss). */
 export function progressFromBaseline(current: number, goal: number, baseline: number): number {
   if (Math.abs(current - goal) < 0.05) return 100

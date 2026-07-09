@@ -3,6 +3,7 @@ import {
   progressFromBaseline,
   progressTowardHigherGoal,
   progressTowardLowerGoal,
+  weightBaselineForGoal,
 } from '../lib/goalProgress'
 import { calculateFFMI, calculateNormalizedFFMI, calculateLeanMassLbs } from '../lib/calculateFFMI'
 
@@ -42,8 +43,15 @@ export default function DashboardWidgets({ measurements, profile }: DashboardWid
   const ffmiGoal = profile?.target_ffmi
   const normalizedFfmiGoal = profile?.target_normalized_ffmi
 
+  const weightBaseline = weightGoal
+    ? weightBaselineForGoal(
+        measurements.map((m) => m.weight),
+        weightGoal,
+        currentWeight
+      )
+    : 0
   const weightProgress = weightGoal
-    ? progressFromBaseline(currentWeight, weightGoal, earliest.weight)
+    ? progressFromBaseline(currentWeight, weightGoal, weightBaseline)
     : 0
 
   const bfProgress = bfGoal
