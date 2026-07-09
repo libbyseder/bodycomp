@@ -20,7 +20,7 @@ export default function ConnectWithingsButton({
   const startAuth = async (switchAccount = false) => {
     onNavigate?.()
     try {
-      await openWithingsAuth({ switchAccount })
+      await openWithingsAuth()
       if (switchAccount) {
         await onConnectionChange?.()
       }

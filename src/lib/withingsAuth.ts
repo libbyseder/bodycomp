@@ -38,7 +38,7 @@ export async function disconnectWithings(): Promise<void> {
   })
 }
 
-export async function openWithingsAuth(options?: { switchAccount?: boolean }): Promise<void> {
+export async function openWithingsAuth(): Promise<void> {
   // Always clear BodyTrend's stored Withings tokens before a new OAuth attempt.
   await disconnectWithings()
 
