@@ -33,6 +33,12 @@ Prerequisites (Mac required for final build):
    - Choose a simulator or connected iPhone
    - Press Run (Cmd+R)
 
+Progress photos (Camera plugin):
+- After npm install, run npm run cap:sync ios
+- In ios/App/App/Info.plist ensure these exist (Capacitor Camera usually adds them):
+  NSCameraUsageDescription — "BodyTrend needs camera access for progress photos"
+  NSPhotoLibraryUsageDescription — "BodyTrend needs photo library access for progress photos"
+
 Withings OAuth on iOS:
 - Tap "Connect Withings" — opens Safari sheet
 - After login, redirects back to the app via recomptrack:// deep link

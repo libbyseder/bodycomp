@@ -44,9 +44,13 @@ function extensionForMime(mimeType: string): string {
   }
 }
 
+export function resolvePhotoMime(file: File): string {
+  return file.type || inferMimeFromName(file.name) || 'image/jpeg'
+}
+
 export function validatePhotoFile(file: File): string | null {
-  const mime = file.type || inferMimeFromName(file.name)
-  if (!mime || !ALLOWED_MIME_TYPES.has(mime)) {
+  const mime = resolvePhotoMime(file)
+  if (!ALLOWED_MIME_TYPES.has(mime)) {
     return 'Please choose a JPEG, PNG, or WebP image'
   }
   if (file.size > MAX_PHOTO_BYTES) {
@@ -76,7 +80,7 @@ export async function uploadProgressPhoto(
     return { data: null, error: validationError }
   }
 
-  const mimeType = file.type || inferMimeFromName(file.name) || 'image/jpeg'
+  const mimeType = resolvePhotoMime(file)
   const photoId = crypto.randomUUID()
   const storagePath = buildPhotoStoragePath(userId, date, photoId, mimeType)
 
