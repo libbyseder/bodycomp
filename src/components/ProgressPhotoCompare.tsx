@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, Columns2, SlidersHorizontal } from 'lucide-react'
 import BeforeAfterSlider from './BeforeAfterSlider'
+import ComparePhotoImage from './ComparePhotoImage'
+import ComparePhotoTools from './ComparePhotoTools'
+import {
+  DEFAULT_COMPARE_TOOLS,
+  compareBackgroundStyle,
+  type CompareToolSettings,
+} from '../lib/comparePhotoTools'
 import type { Measurement, Profile, ProgressPhoto, ProgressPhotoPose } from '../types'
 import { measurementOnDate } from '../lib/goalWindow'
 import {
@@ -42,6 +49,14 @@ export default function ProgressPhotoCompare({
   const [afterDate, setAfterDate] = useState<string | null>(null)
   const previousPoseRef = useRef<ProgressPhotoPose | null>(null)
   const [viewMode, setViewMode] = useState<CompareViewMode>('slider')
+  const [toolSettings, setToolSettings] = useState<CompareToolSettings>(
+    DEFAULT_COMPARE_TOOLS
+  )
+  const [sliderResetToken, setSliderResetToken] = useState(0)
+
+  const updateTools = (patch: Partial<CompareToolSettings>) => {
+    setToolSettings((current) => ({ ...current, ...patch }))
+  }
 
   useEffect(() => {
     if (!initialPose) {
@@ -281,19 +296,42 @@ export default function ProgressPhotoCompare({
               )
             }
 
+            const leftUrl = toolSettings.swapped ? afterUrl : beforeUrl
+            const rightUrl = toolSettings.swapped ? beforeUrl : afterUrl
+            const leftLabel = toolSettings.swapped
+              ? `After · ${formatPhotoDate(pair.after.date)}`
+              : `Before · ${formatPhotoDate(pair.before.date)}`
+            const rightLabel = toolSettings.swapped
+              ? `Before · ${formatPhotoDate(pair.before.date)}`
+              : `After · ${formatPhotoDate(pair.after.date)}`
+            const leftMeasurement = toolSettings.swapped ? afterMeasurement : beforeMeasurement
+            const rightMeasurement = toolSettings.swapped ? beforeMeasurement : afterMeasurement
+            const leftPhoto = toolSettings.swapped ? pair.after : pair.before
+            const rightPhoto = toolSettings.swapped ? pair.before : pair.after
+            const leftCaption = toolSettings.swapped ? 'After' : 'Before'
+            const rightCaption = toolSettings.swapped ? 'Before' : 'After'
+
             if (viewMode === 'slider') {
               return (
                 <div className="max-w-lg mx-auto space-y-4">
+                  <ComparePhotoTools
+                    settings={toolSettings}
+                    onChange={updateTools}
+                    onResetSlider={() => setSliderResetToken((value) => value + 1)}
+                    showOverlayControls
+                  />
                   <BeforeAfterSlider
                     beforeUrl={beforeUrl}
                     afterUrl={afterUrl}
                     beforeLabel={`Before · ${formatPhotoDate(pair.before.date)}`}
                     afterLabel={`After · ${formatPhotoDate(pair.after.date)}`}
+                    settings={toolSettings}
+                    resetToken={sliderResetToken}
                   />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {[beforeMeasurement, afterMeasurement].map((measurement, index) => {
-                      const photo = index === 0 ? pair.before : pair.after
-                      const caption = index === 0 ? 'Before' : 'After'
+                    {[leftMeasurement, rightMeasurement].map((measurement, index) => {
+                      const photo = index === 0 ? leftPhoto : rightPhoto
+                      const caption = index === 0 ? leftCaption : rightCaption
                       const summary = formatMeasurementSummary(measurement, heightInches)
                       return (
                         <div
@@ -320,45 +358,58 @@ export default function ProgressPhotoCompare({
             }
 
             return (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {([pair.before, pair.after] as const).map((photo, index) => {
-                  const measurement = index === 0 ? beforeMeasurement : afterMeasurement
-                  const signedUrl = index === 0 ? beforeUrl : afterUrl
-                  const caption = index === 0 ? 'Before' : 'After'
-                  const measurementSummary = formatMeasurementSummary(measurement, heightInches)
+              <div className="space-y-4">
+                <ComparePhotoTools
+                  settings={toolSettings}
+                  onChange={updateTools}
+                  onResetSlider={() => setSliderResetToken((value) => value + 1)}
+                  showOverlayControls={false}
+                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {([
+                    { photo: leftPhoto, url: leftUrl, caption: leftCaption, measurement: leftMeasurement, layer: 'before' as const },
+                    { photo: rightPhoto, url: rightUrl, caption: rightCaption, measurement: rightMeasurement, layer: 'after' as const },
+                  ] as const).map(({ photo, url, caption, measurement, layer }) => {
+                    const measurementSummary = formatMeasurementSummary(
+                      measurement,
+                      heightInches
+                    )
 
-                  return (
-                    <article
-                      key={photo.id}
-                      className="overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-950"
-                    >
-                      <div className="px-3 py-2 border-b border-zinc-800">
-                        <p className="text-sm font-medium text-white">
-                          {caption} · {formatPhotoDate(photo.date)}
-                        </p>
-                        {measurementSummary ? (
-                          <p className="text-xs text-zinc-500 mt-0.5">{measurementSummary}</p>
-                        ) : (
-                          <p className="text-xs text-zinc-600 mt-0.5">No scale log this day</p>
-                        )}
-                      </div>
-                      <img
-                        src={signedUrl}
-                        alt={`${caption} ${PHOTO_POSE_LABELS[photo.pose]} photo`}
-                        className="aspect-[3/4] w-full object-cover"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                      <div className="p-3">
-                        <ProgressPhotoAnalysis
-                          photo={photo}
-                          measurement={measurement ?? undefined}
-                          compact
-                        />
-                      </div>
-                    </article>
-                  )
-                })}
+                    return (
+                      <article
+                        key={photo.id}
+                        className="overflow-hidden rounded-2xl border border-zinc-700"
+                        style={compareBackgroundStyle(toolSettings.background)}
+                      >
+                        <div className="px-3 py-2 border-b border-zinc-800/80 bg-black/20">
+                          <p className="text-sm font-medium text-white">
+                            {caption} · {formatPhotoDate(photo.date)}
+                          </p>
+                          {measurementSummary ? (
+                            <p className="text-xs text-zinc-500 mt-0.5">{measurementSummary}</p>
+                          ) : (
+                            <p className="text-xs text-zinc-600 mt-0.5">No scale log this day</p>
+                          )}
+                        </div>
+                        <div className="relative aspect-[3/4]">
+                          <ComparePhotoImage
+                            url={url}
+                            alt={`${caption} ${PHOTO_POSE_LABELS[photo.pose]} photo`}
+                            settings={toolSettings}
+                            layer={layer}
+                          />
+                        </div>
+                        <div className="p-3 bg-zinc-950/90">
+                          <ProgressPhotoAnalysis
+                            photo={photo}
+                            measurement={measurement ?? undefined}
+                            compact
+                          />
+                        </div>
+                      </article>
+                    )
+                  })}
+                </div>
               </div>
             )
           })()}
