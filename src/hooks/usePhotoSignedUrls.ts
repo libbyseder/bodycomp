@@ -1,73 +1,92 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ProgressPhoto } from '../types'
 import { fetchSignedPhotoUrl, peekSignedPhotoUrl } from '../lib/photoSignedUrlCache'
 
-export function usePhotoSignedUrls(photos: ProgressPhoto[]) {
-  const [urlByPath, setUrlByPath] = useState<Record<string, string>>({})
-  const [loadingPaths, setLoadingPaths] = useState<Set<string>>(new Set())
+function mergeUrlMaps(
+  previous: Record<string, string>,
+  additions: Record<string, string>
+): Record<string, string> {
+  let changed = false
+  const next = { ...previous }
 
-  const storagePaths = useMemo(
-    () => [...new Set(photos.map((photo) => photo.storage_path))].sort(),
+  for (const [path, url] of Object.entries(additions)) {
+    if (next[path] !== url) {
+      next[path] = url
+      changed = true
+    }
+  }
+
+  return changed ? next : previous
+}
+
+export function usePhotoSignedUrls(photos: ProgressPhoto[]) {
+  const pathsKey = useMemo(
+    () => [...new Set(photos.map((photo) => photo.storage_path))].sort().join('|'),
     [photos]
   )
 
-  const pathsKey = storagePaths.join('|')
+  const [urlByPath, setUrlByPath] = useState<Record<string, string>>({})
+  const [loadingPaths, setLoadingPaths] = useState<Set<string>>(() => new Set())
 
   useEffect(() => {
     let cancelled = false
+    const storagePaths = pathsKey ? pathsKey.split('|') : []
 
-    const syncFromCache = () => {
-      const fromCache: Record<string, string> = {}
-      for (const path of storagePaths) {
-        const cached = peekSignedPhotoUrl(path)
-        if (cached) fromCache[path] = cached
-      }
-      if (Object.keys(fromCache).length > 0) {
-        setUrlByPath((previous) => ({ ...previous, ...fromCache }))
-      }
-      return fromCache
+    if (storagePaths.length === 0) {
+      setLoadingPaths(new Set())
+      return
     }
 
+    const cachedUrls: Record<string, string> = {}
+    for (const path of storagePaths) {
+      const cached = peekSignedPhotoUrl(path)
+      if (cached) cachedUrls[path] = cached
+    }
+
+    if (Object.keys(cachedUrls).length > 0) {
+      setUrlByPath((previous) => mergeUrlMaps(previous, cachedUrls))
+    }
+
+    const missing = storagePaths.filter((path) => !cachedUrls[path])
+    if (missing.length === 0) {
+      setLoadingPaths(new Set())
+      return
+    }
+
+    setLoadingPaths(new Set(missing))
+
     ;(async () => {
-      if (storagePaths.length === 0) {
-        setLoadingPaths(new Set())
-        return
-      }
-
-      const fromCache = syncFromCache()
-      const missing = storagePaths.filter((path) => !fromCache[path])
-      if (missing.length === 0) {
-        setLoadingPaths(new Set())
-        return
-      }
-
-      setLoadingPaths(new Set(missing))
+      const fetchedUrls: Record<string, string> = {}
 
       await Promise.all(
         missing.map(async (path) => {
           const url = await fetchSignedPhotoUrl(path)
-          if (cancelled || !url) return
-          setUrlByPath((previous) =>
-            previous[path] === url ? previous : { ...previous, [path]: url }
-          )
+          if (url) fetchedUrls[path] = url
         })
       )
 
-      if (!cancelled) {
-        setLoadingPaths(new Set())
+      if (cancelled) return
+
+      if (Object.keys(fetchedUrls).length > 0) {
+        setUrlByPath((previous) => mergeUrlMaps(previous, fetchedUrls))
       }
+      setLoadingPaths(new Set())
     })()
 
     return () => {
       cancelled = true
     }
-  }, [pathsKey, storagePaths])
+  }, [pathsKey])
 
-  const getUrl = (storagePath: string) =>
-    urlByPath[storagePath] ?? peekSignedPhotoUrl(storagePath)
+  const getUrl = useCallback(
+    (storagePath: string) => urlByPath[storagePath] ?? peekSignedPhotoUrl(storagePath),
+    [urlByPath]
+  )
 
-  const isLoading = (storagePath: string) =>
-    loadingPaths.has(storagePath) && !getUrl(storagePath)
+  const isLoading = useCallback(
+    (storagePath: string) => loadingPaths.has(storagePath) && !getUrl(storagePath),
+    [loadingPaths, getUrl]
+  )
 
   return { getUrl, isLoading, loading: loadingPaths.size > 0 }
 }

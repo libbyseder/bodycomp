@@ -33,7 +33,7 @@ export default function ProgressPhotoGallery({
   const [useCustomDate, setUseCustomDate] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [analyzingId, setAnalyzingId] = useState<string | null>(null)
-  const { getUrl, loading: loadingUrls } = usePhotoSignedUrls(photos)
+  const { getUrl, isLoading } = usePhotoSignedUrls(photos)
 
   const measurementDates = useMemo(
     () => [...new Set(measurements.map((m) => m.date))].sort((a, b) => b.localeCompare(a)),
@@ -94,7 +94,13 @@ export default function ProgressPhotoGallery({
 
   return (
     <div className="space-y-6">
-      <ProgressPhotoCompare photos={photos} measurements={measurements} profile={profile} />
+      <ProgressPhotoCompare
+        photos={photos}
+        measurements={measurements}
+        profile={profile}
+        getPhotoUrl={getUrl}
+        isPhotoLoading={isLoading}
+      />
 
       <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
         <h2 className="text-lg font-semibold mb-1">Add progress photo</h2>
@@ -165,7 +171,7 @@ export default function ProgressPhotoGallery({
           </span>
         </div>
 
-        {loading || loadingUrls ? (
+        {loading ? (
           <p className="text-sm text-zinc-400">Loading photos…</p>
         ) : grouped.length === 0 ? (
           <p className="text-sm text-zinc-400">
@@ -193,12 +199,17 @@ export default function ProgressPhotoGallery({
                         className="overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-950"
                       >
                         <div className="relative">
-                          {getUrl(photo.storage_path) ? (
+                          {isLoading(photo.storage_path) ? (
+                            <div className="aspect-[3/4] flex items-center justify-center text-xs text-zinc-500">
+                              Loading…
+                            </div>
+                          ) : getUrl(photo.storage_path) ? (
                             <img
                               src={getUrl(photo.storage_path)!}
                               alt={`${PHOTO_POSE_LABELS[photo.pose]} progress photo on ${date}`}
                               className="aspect-[3/4] w-full object-cover"
                               loading="lazy"
+                              decoding="async"
                             />
                           ) : (
                             <div className="aspect-[3/4] flex items-center justify-center text-xs text-zinc-500">

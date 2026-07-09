@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight } from 'lucide-react'
 import type { Measurement, Profile, ProgressPhoto, ProgressPhotoPose } from '../types'
 import { measurementOnDate } from '../lib/goalWindow'
-import { usePhotoSignedUrls } from '../hooks/usePhotoSignedUrls'
 import {
   compareDatesForPose,
   compareMetricDeltas,
@@ -20,12 +19,16 @@ interface ProgressPhotoCompareProps {
   photos: ProgressPhoto[]
   measurements: Measurement[]
   profile: Profile | null
+  getPhotoUrl: (storagePath: string) => string | null
+  isPhotoLoading: (storagePath: string) => boolean
 }
 
 export default function ProgressPhotoCompare({
   photos,
   measurements,
   profile,
+  getPhotoUrl,
+  isPhotoLoading,
 }: ProgressPhotoCompareProps) {
   const availablePoses = useMemo(() => posesWithMultiplePhotos(photos), [photos])
   const initialPose = useMemo(() => defaultComparePose(photos), [photos])
@@ -34,6 +37,7 @@ export default function ProgressPhotoCompare({
   const [pose, setPose] = useState<ProgressPhotoPose | null>(initialPose)
   const [beforeDate, setBeforeDate] = useState<string | null>(null)
   const [afterDate, setAfterDate] = useState<string | null>(null)
+  const previousPoseRef = useRef<ProgressPhotoPose | null>(null)
 
   useEffect(() => {
     if (!initialPose) {
@@ -61,11 +65,26 @@ export default function ProgressPhotoCompare({
     if (!defaultDates) {
       setBeforeDate(null)
       setAfterDate(null)
+      previousPoseRef.current = null
       return
     }
-    setBeforeDate(defaultDates.beforeDate)
-    setAfterDate(defaultDates.afterDate)
-  }, [activePose, defaultDates?.beforeDate, defaultDates?.afterDate])
+
+    const poseChanged = previousPoseRef.current !== activePose
+    previousPoseRef.current = activePose
+
+    if (poseChanged) {
+      setBeforeDate(defaultDates.beforeDate)
+      setAfterDate(defaultDates.afterDate)
+      return
+    }
+
+    setBeforeDate((current) =>
+      current && datesForPose.includes(current) ? current : defaultDates.beforeDate
+    )
+    setAfterDate((current) =>
+      current && datesForPose.includes(current) ? current : defaultDates.afterDate
+    )
+  }, [activePose, defaultDates?.beforeDate, defaultDates?.afterDate, datesForPose])
 
   const resolvedBeforeDate =
     beforeDate && datesForPose.includes(beforeDate)
@@ -81,8 +100,6 @@ export default function ProgressPhotoCompare({
     if (!activePose || !resolvedBeforeDate || !resolvedAfterDate) return null
     return resolveComparePair(photos, activePose, resolvedBeforeDate, resolvedAfterDate)
   }, [photos, activePose, resolvedBeforeDate, resolvedAfterDate])
-
-  const { getUrl, isLoading } = usePhotoSignedUrls(photos)
 
   if (!initialPose || !activePose || !defaultDates || !resolvedBeforeDate || !resolvedAfterDate) {
     return (
@@ -212,8 +229,8 @@ export default function ProgressPhotoCompare({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {([pair.before, pair.after] as const).map((photo, index) => {
               const measurement = index === 0 ? beforeMeasurement : afterMeasurement
-              const signedUrl = getUrl(photo.storage_path)
-              const photoLoading = isLoading(photo.storage_path)
+              const signedUrl = getPhotoUrl(photo.storage_path)
+              const photoLoading = isPhotoLoading(photo.storage_path)
               const caption = index === 0 ? 'Before' : 'After'
               const measurementSummary = formatMeasurementSummary(measurement, heightInches)
 
