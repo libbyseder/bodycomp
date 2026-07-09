@@ -16,6 +16,8 @@ import type { Profile } from '../types'
 import { Settings } from 'lucide-react'
 import { goalLegendLabels } from '../lib/chartLegend'
 import { calculateFFMI, calculateNormalizedFFMI } from '../lib/calculateFFMI'
+import { measurementsForDisplay } from '../lib/goalWindow'
+import GoalWindowNotice from './GoalWindowNotice'
 
 ChartJS.register(
   CategoryScale,
@@ -93,9 +95,14 @@ export default function TrendsChart({
     normalizedFfmiGoal: true,
   })
 
+  const displayMeasurements = useMemo(
+    () => measurementsForDisplay(measurements, profile),
+    [measurements, profile]
+  )
+
   const sorted = useMemo(
-    () => [...measurements].sort((a, b) => a.date.localeCompare(b.date)),
-    [measurements]
+    () => [...displayMeasurements].sort((a, b) => a.date.localeCompare(b.date)),
+    [displayMeasurements]
   )
 
   const { data, label } = useMemo(() => {
@@ -349,6 +356,7 @@ export default function TrendsChart({
         <div>
           <h2 className="text-xl sm:text-2xl font-semibold">Trends</h2>
           <p className="text-zinc-400 text-sm mt-1">{label}</p>
+          <GoalWindowNotice profile={profile} className="mt-1.5" />
         </div>
 
         <div className="flex flex-col gap-2 sm:gap-0 sm:flex-row sm:flex-wrap sm:items-center">

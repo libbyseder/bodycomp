@@ -21,6 +21,8 @@ export interface Profile {
   target_body_fat?: number | null
   target_ffmi?: number | null
   target_normalized_ffmi?: number | null
+  goal_start_date?: string | null
+  hide_pre_goal_entries?: boolean | null
   created_at?: string
   updated_at?: string
 }

@@ -29,7 +29,9 @@ import {
   type GoalPathVisibilitySettings,
 } from '../lib/goalPathChartVisibility'
 import { useAuth } from '../contexts/AuthContext'
+import { measurementsForDisplay } from '../lib/goalWindow'
 import FfmiCalcInfo, { FfmiInfoButton } from './FfmiCalcInfo'
+import GoalWindowNotice from './GoalWindowNotice'
 
 ChartJS.register(
   CategoryScale,
@@ -179,9 +181,14 @@ export default function SmoothedTrendsChart({
     [user?.id]
   )
 
+  const displayMeasurements = useMemo(
+    () => measurementsForDisplay(measurements, profile),
+    [measurements, profile]
+  )
+
   const allDailyPoints = useMemo(
-    () => buildDailyPoints(measurements, profile?.height_inches),
-    [measurements, profile?.height_inches]
+    () => buildDailyPoints(displayMeasurements, profile?.height_inches),
+    [displayMeasurements, profile?.height_inches]
   )
 
   const periodPoints = useMemo(
@@ -524,6 +531,7 @@ export default function SmoothedTrendsChart({
             <p className="text-zinc-400 text-sm mt-1">
               {subtitle ?? `Moving averages for weight, body fat, and FFMI — ${getTrendPeriodLabel(period)}`}
             </p>
+            <GoalWindowNotice profile={profile} className="mt-1.5" />
           </div>
 
           <div className="flex flex-wrap gap-2">

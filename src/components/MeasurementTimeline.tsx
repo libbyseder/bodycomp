@@ -1,5 +1,7 @@
+import { useMemo } from 'react'
 import type { Measurement, Profile } from '../types'
 import { calculateFFMI, calculateNormalizedFFMI, calculateLeanMassLbs } from '../lib/calculateFFMI'
+import { measurementsForDisplay } from '../lib/goalWindow'
 import { ChevronRight } from 'lucide-react'
 
 interface MeasurementTimelineProps {
@@ -15,7 +17,11 @@ export default function MeasurementTimeline({
   limit = 5,
   onViewAll,
 }: MeasurementTimelineProps) {
-  const recent = measurements.slice(0, limit)
+  const displayMeasurements = useMemo(
+    () => measurementsForDisplay(measurements, profile),
+    [measurements, profile]
+  )
+  const recent = displayMeasurements.slice(0, limit)
 
   if (recent.length === 0) {
     return (
@@ -29,7 +35,7 @@ export default function MeasurementTimeline({
     <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg sm:text-xl font-semibold">Recent</h2>
-        {onViewAll && measurements.length > limit && (
+        {onViewAll && displayMeasurements.length > limit && (
           <button
             type="button"
             onClick={onViewAll}
@@ -94,13 +100,13 @@ export default function MeasurementTimeline({
         })}
       </ul>
 
-      {onViewAll && measurements.length > 0 && (
+      {onViewAll && displayMeasurements.length > 0 && (
         <button
           type="button"
           onClick={onViewAll}
           className="w-full mt-4 py-2.5 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
         >
-          See all {measurements.length} entries in Log
+          See all {displayMeasurements.length} entries in Log
         </button>
       )}
     </div>

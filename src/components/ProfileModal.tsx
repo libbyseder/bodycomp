@@ -13,6 +13,8 @@ type ProfileFormData = {
   target_body_fat: number | null
   target_ffmi: number | null
   target_normalized_ffmi: number | null
+  goal_start_date: string
+  hide_pre_goal_entries: boolean
 }
 
 const DEFAULT_FORM_DATA: ProfileFormData = {
@@ -23,6 +25,8 @@ const DEFAULT_FORM_DATA: ProfileFormData = {
   target_body_fat: null,
   target_ffmi: null,
   target_normalized_ffmi: null,
+  goal_start_date: '',
+  hide_pre_goal_entries: false,
 }
 
 function parseOptionalNumber(value: string): number | null {
@@ -35,9 +39,15 @@ interface ProfileModalProps {
   isOpen: boolean
   onClose: () => void
   onSave?: () => void | Promise<void>
+  earliestMeasurementDate?: string | null
 }
 
-export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalProps) {
+export default function ProfileModal({
+  isOpen,
+  onClose,
+  onSave,
+  earliestMeasurementDate = null,
+}: ProfileModalProps) {
   const { user } = useAuth()
   const [formData, setFormData] = useState(DEFAULT_FORM_DATA)
   const [showFfmiTooltip, setShowFfmiTooltip] = useState(false)
@@ -117,6 +127,8 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
           target_body_fat: data.target_body_fat ?? null,
           target_ffmi: data.target_ffmi ?? null,
           target_normalized_ffmi: data.target_normalized_ffmi ?? null,
+          goal_start_date: data.goal_start_date ?? '',
+          hide_pre_goal_entries: !!data.hide_pre_goal_entries,
         })
       } else if (error?.code !== 'PGRST116') {
         console.error('Error loading profile:', error)
@@ -166,6 +178,8 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
         target_body_fat: formData.target_body_fat,
         target_ffmi: formData.target_ffmi,
         target_normalized_ffmi: formData.target_normalized_ffmi,
+        goal_start_date: formData.goal_start_date || null,
+        hide_pre_goal_entries: formData.hide_pre_goal_entries,
       })
 
     setLoading(false)
@@ -270,7 +284,55 @@ export default function ProfileModal({ isOpen, onClose, onSave }: ProfileModalPr
         </div>
 
         <div className="mb-2">
-          <h3 className="text-lg font-medium mb-4">Goals</h3>
+          <h3 className="text-lg font-medium mb-1">Goals</h3>
+          <p className="text-xs text-zinc-500 mb-4">
+            Set a goal start date to measure progress from a specific point in your journey.
+          </p>
+        </div>
+
+        <div className="mb-6 p-4 bg-zinc-800/50 border border-zinc-700 rounded-2xl">
+          <label className="block text-sm text-zinc-400 mb-2">Goal start date</label>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="date"
+              value={formData.goal_start_date}
+              onChange={(e) => setFormData({ ...formData, goal_start_date: e.target.value })}
+              className="flex-1 bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
+            />
+            {earliestMeasurementDate && (
+              <button
+                type="button"
+                onClick={() =>
+                  setFormData({ ...formData, goal_start_date: earliestMeasurementDate })
+                }
+                className="px-4 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm text-zinc-200 transition-colors whitespace-nowrap"
+              >
+                Use first entry
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-zinc-500 mt-2">
+            Leave empty to use all measurement history for goal progress.
+          </p>
+          <label className="mt-4 flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={formData.hide_pre_goal_entries}
+              disabled={!formData.goal_start_date}
+              onChange={(e) =>
+                setFormData({ ...formData, hide_pre_goal_entries: e.target.checked })
+              }
+              className="mt-1 rounded border-zinc-600 bg-zinc-800 text-cyan-500 focus:ring-cyan-500"
+            />
+            <span className="text-sm text-zinc-300 leading-snug">
+              Hide entries before start date on charts and log
+              {!formData.goal_start_date && (
+                <span className="block text-xs text-zinc-500 mt-1">
+                  Set a start date to enable this option.
+                </span>
+              )}
+            </span>
+          </label>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 overflow-visible">

@@ -22,6 +22,7 @@ import { useMeasurements } from './hooks/useMeasurements'
 import { useProfile } from './hooks/useProfile'
 import { useWithingsConnection } from './hooks/useWithingsConnection'
 import type { TabId } from './types/navigation'
+import { defaultGoalStartDate } from './lib/goalWindow'
 import toast, { Toaster } from 'react-hot-toast'
 
 function AuthenticatedDashboard() {
@@ -211,7 +212,9 @@ function AuthenticatedDashboard() {
 
         {activeTab === 'settings' && (
           <SettingsTab
+            profile={safeProfile}
             refetch={refetch}
+            refetchProfile={refetchProfile}
             refetchWithings={refetchWithings}
             measurementCount={safeMeasurements.length}
             onProfile={() => setShowProfile(true)}
@@ -235,6 +238,7 @@ function AuthenticatedDashboard() {
         isOpen={showProfile}
         onClose={() => setShowProfile(false)}
         onSave={refetchProfile}
+        earliestMeasurementDate={defaultGoalStartDate(safeMeasurements)}
       />
     </div>
   )

@@ -1,5 +1,6 @@
 import type { Measurement, Profile } from '../types'
 import { getGoalPredictions } from '../lib/goalPrediction'
+import { measurementsForGoalProgress } from '../lib/goalWindow'
 import { TrendingDown, TrendingUp, Minus } from 'lucide-react'
 
 interface GoalPredictionBannerProps {
@@ -11,7 +12,10 @@ export default function GoalPredictionBanner({
   measurements,
   profile,
 }: GoalPredictionBannerProps) {
-  const predictions = getGoalPredictions(measurements, profile)
+  const predictions = getGoalPredictions(
+    measurementsForGoalProgress(measurements, profile),
+    profile
+  )
 
   if (predictions.length === 0) return null
 

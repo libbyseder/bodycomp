@@ -1,6 +1,9 @@
+import { useMemo } from 'react'
 import { RefreshCw, Plus } from 'lucide-react'
 import type { Measurement, Profile } from '../types'
+import { measurementsForDisplay } from '../lib/goalWindow'
 import MeasurementsTable from './MeasurementsTable'
+import GoalWindowNotice from './GoalWindowNotice'
 
 interface LogTabProps {
   measurements: Measurement[]
@@ -17,14 +20,21 @@ export default function LogTab({
   onRefresh,
   onQuickLog,
 }: LogTabProps) {
+  const displayMeasurements = useMemo(
+    () => measurementsForDisplay(measurements, profile),
+    [measurements, profile]
+  )
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Log</h1>
           <p className="text-zinc-400 mt-1 text-sm sm:text-base">
-            {measurements.length} total {measurements.length === 1 ? 'entry' : 'entries'}
+            {displayMeasurements.length} total{' '}
+            {displayMeasurements.length === 1 ? 'entry' : 'entries'}
           </p>
+          <GoalWindowNotice profile={profile} className="mt-1" />
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
           <button
@@ -46,7 +56,7 @@ export default function LogTab({
 
       <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8">
         <MeasurementsTable
-          measurements={measurements}
+          measurements={displayMeasurements}
           onDelete={onDelete}
           profile={profile}
         />

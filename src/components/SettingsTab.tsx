@@ -4,9 +4,13 @@ import ImportCSV from './ImportCSV'
 import ConnectWithingsButton from './ConnectWithingsButton'
 import WithingsSync from './WithingsSync'
 import PasskeySettings from './PasskeySettings'
+import GoalJourneySettings from './GoalJourneySettings'
+import type { Profile } from '../types'
 
 interface SettingsTabProps {
+  profile: Profile | null
   refetch: () => Promise<void>
+  refetchProfile: () => void | Promise<void>
   refetchWithings?: () => void | Promise<void>
   measurementCount: number
   onProfile: () => void
@@ -54,7 +58,9 @@ function SettingsRow({
 }
 
 export default function SettingsTab({
+  profile,
   refetch,
+  refetchProfile,
   refetchWithings,
   measurementCount,
   onProfile,
@@ -84,10 +90,18 @@ export default function SettingsTab({
             </div>
             <div>
               <p className="font-medium text-white">Profile &amp; Goals</p>
-              <p className="text-sm text-zinc-400 mt-0.5">Name, height, FFMI &amp; normalized goals</p>
+              <p className="text-sm text-zinc-400 mt-0.5">Name, height, targets &amp; goal start date</p>
             </div>
           </button>
         </SettingsRow>
+      </SettingsSection>
+
+      <SettingsSection title="Goal Journey">
+        <GoalJourneySettings
+          profile={profile}
+          onEditProfile={onProfile}
+          onUpdate={refetchProfile}
+        />
       </SettingsSection>
 
       <SettingsSection title="Connected Devices" allowOverflow>
