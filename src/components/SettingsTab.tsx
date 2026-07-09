@@ -109,6 +109,7 @@ export default function SettingsTab({
             <ConnectWithingsButton
               connected={withingsConnected}
               loading={withingsLoading}
+              onConnectionChange={refetchWithings}
               className="w-full"
             />
             {withingsConnected && (

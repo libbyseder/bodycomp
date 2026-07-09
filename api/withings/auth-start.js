@@ -28,19 +28,12 @@ export default async function handler(req, res) {
     isApp = false
   }
 
-  const redirectUri = 'https://bodycomp-goals.vercel.app/api/withings/callback'
-  const scope = 'user.metrics'
-
   try {
     const state = createWithingsOAuthState(user.id, isApp)
-    const authUrl = new URL('https://account.withings.com/oauth2_user/authorize2')
-    authUrl.searchParams.set('response_type', 'code')
-    authUrl.searchParams.set('client_id', clientId)
-    authUrl.searchParams.set('redirect_uri', redirectUri)
-    authUrl.searchParams.set('scope', scope)
-    authUrl.searchParams.set('state', state)
+    const beginUrl = new URL('https://bodycomp-goals.vercel.app/api/withings/begin-oauth')
+    beginUrl.searchParams.set('state', state)
 
-    return res.status(200).json({ url: authUrl.toString() })
+    return res.status(200).json({ url: beginUrl.toString() })
   } catch (error) {
     console.error('Withings auth-start error:', error)
     return res.status(500).json({ error: error.message || 'Failed to start Withings auth' })

@@ -3,7 +3,7 @@ import { Browser } from '@capacitor/browser'
 import { supabase } from './supabase'
 import { apiUrl } from './apiBase'
 
-export async function openWithingsAuth(): Promise<void> {
+async function getAuthStartUrl(): Promise<string> {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) {
     throw new Error('Please log in before connecting Withings')
@@ -23,15 +23,37 @@ export async function openWithingsAuth(): Promise<void> {
     throw new Error(result.error || 'Failed to start Withings authorization')
   }
 
+  return result.url
+}
+
+export async function disconnectWithings(): Promise<void> {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return
+
+  await fetch(apiUrl('/api/withings/disconnect'), {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
+  })
+}
+
+export async function openWithingsAuth(options?: { switchAccount?: boolean }): Promise<void> {
+  if (options?.switchAccount) {
+    await disconnectWithings()
+  }
+
+  const url = await getAuthStartUrl()
+
   if (Capacitor.isNativePlatform()) {
     await Browser.open({
-      url: result.url,
+      url,
       ...(Capacitor.getPlatform() === 'ios' ? { presentationStyle: 'popover' as const } : {}),
     })
     return
   }
 
-  window.location.href = result.url
+  window.location.href = url
 }
 
 export function parseWithingsDeepLink(url: string): URLSearchParams | null {

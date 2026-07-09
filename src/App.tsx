@@ -4,6 +4,7 @@ import { apiUrl } from './lib/apiBase'
 import { registerWithingsDeepLinkHandler } from './lib/withingsOAuth'
 import { registerAuthDeepLinkHandler } from './lib/oauthSignIn'
 import { runWithingsSync } from './lib/runWithingsSync'
+import { disconnectWithings } from './lib/withingsAuth'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import AuthModal from './components/AuthModal'
 import QuickLogModal from './components/QuickLogModal'
@@ -133,6 +134,16 @@ function AuthenticatedDashboard() {
     )
   }, [])
 
+  const handleSignOut = async () => {
+    try {
+      await disconnectWithings()
+      await refetchWithings()
+    } catch (error) {
+      console.error('Error disconnecting Withings on sign out:', error)
+    }
+    await signOut()
+  }
+
   const handleDeleteAll = async () => {
     if (!confirm('Are you sure you want to delete ALL your measurements? This cannot be undone.')) {
       return
@@ -204,7 +215,7 @@ function AuthenticatedDashboard() {
             refetchWithings={refetchWithings}
             measurementCount={safeMeasurements.length}
             onProfile={() => setShowProfile(true)}
-            onSignOut={signOut}
+            onSignOut={() => void handleSignOut()}
             onDeleteAll={() => void handleDeleteAll()}
             withingsConnected={withingsConnected}
             withingsLoading={withingsLoading}
