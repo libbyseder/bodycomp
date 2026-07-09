@@ -217,7 +217,6 @@ function AuthenticatedDashboard() {
             refetch={refetch}
             refetchProfile={refetchProfile}
             refetchWithings={refetchWithings}
-            measurementCount={safeMeasurements.length}
             onProfile={() => setShowProfile(true)}
             onSignOut={() => void handleSignOut()}
             onDeleteAll={() => void handleDeleteAll()}

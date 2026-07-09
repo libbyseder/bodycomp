@@ -13,7 +13,6 @@ interface SettingsTabProps {
   refetch: () => Promise<void>
   refetchProfile: () => void | Promise<void>
   refetchWithings?: () => void | Promise<void>
-  measurementCount: number
   onProfile: () => void
   onSignOut: () => void
   onDeleteAll: () => void
@@ -64,7 +63,6 @@ export default function SettingsTab({
   refetch,
   refetchProfile,
   refetchWithings,
-  measurementCount,
   onProfile,
   onSignOut,
   onDeleteAll,
