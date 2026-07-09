@@ -531,7 +531,7 @@ export default function SmoothedTrendsChart({
             <p className="text-zinc-400 text-sm mt-1">
               {subtitle ?? `Moving averages for weight, body fat, and FFMI — ${getTrendPeriodLabel(period)}`}
             </p>
-            <GoalWindowNotice profile={profile} className="mt-1.5" />
+            <GoalWindowNotice profile={profile} measurements={measurements} className="mt-1.5" />
           </div>
 
           <div className="flex flex-wrap gap-2">

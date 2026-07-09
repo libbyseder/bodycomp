@@ -5,10 +5,11 @@ import ConnectWithingsButton from './ConnectWithingsButton'
 import WithingsSync from './WithingsSync'
 import PasskeySettings from './PasskeySettings'
 import GoalJourneySettings from './GoalJourneySettings'
-import type { Profile } from '../types'
+import type { Measurement, Profile } from '../types'
 
 interface SettingsTabProps {
   profile: Profile | null
+  measurements: Measurement[]
   refetch: () => Promise<void>
   refetchProfile: () => void | Promise<void>
   refetchWithings?: () => void | Promise<void>
@@ -59,6 +60,7 @@ function SettingsRow({
 
 export default function SettingsTab({
   profile,
+  measurements,
   refetch,
   refetchProfile,
   refetchWithings,
@@ -99,6 +101,7 @@ export default function SettingsTab({
       <SettingsSection title="Goal Journey">
         <GoalJourneySettings
           profile={profile}
+          measurements={measurements}
           onEditProfile={onProfile}
           onUpdate={refetchProfile}
         />

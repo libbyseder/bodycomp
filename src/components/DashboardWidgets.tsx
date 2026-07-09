@@ -1,10 +1,15 @@
 import type { Measurement, Profile } from '../types'
 import {
-  metricBaselineForGoal,
+  metricBaselineForGoalWindow,
   progressFromBaseline,
   progressTowardHigherGoal,
 } from '../lib/goalProgress'
-import { measurementsForGoalProgress } from '../lib/goalWindow'
+import {
+  getEffectiveGoalStartDate,
+  getGoalStartDate,
+  measurementOnDate,
+  measurementsForGoalProgress,
+} from '../lib/goalWindow'
 import { calculateFFMI, calculateNormalizedFFMI, calculateLeanMassLbs } from '../lib/calculateFFMI'
 
 interface DashboardWidgetsProps {
@@ -17,6 +22,11 @@ export default function DashboardWidgets({ measurements, profile }: DashboardWid
 
   const latest = measurements[0]
   const goalWindowMeasurements = measurementsForGoalProgress(measurements, profile)
+  const hasGoalStartDate = !!getGoalStartDate(profile)
+  const effectiveGoalStartDate = getEffectiveGoalStartDate(measurements, profile)
+  const startSnapshot = effectiveGoalStartDate
+    ? measurementOnDate(measurements, effectiveGoalStartDate)
+    : null
   const currentWeight = latest.weight
   const currentBf = latest.body_fat ?? 0
 
@@ -53,15 +63,25 @@ export default function DashboardWidgets({ measurements, profile }: DashboardWid
     : []
 
   const weightBaseline = weightGoal
-    ? metricBaselineForGoal(windowWeights, weightGoal, currentWeight)
+    ? metricBaselineForGoalWindow(
+        windowWeights,
+        weightGoal,
+        currentWeight,
+        hasGoalStartDate ? startSnapshot?.weight : null
+      )
     : 0
   const weightProgress = weightGoal
     ? progressFromBaseline(currentWeight, weightGoal, weightBaseline)
     : 0
 
   const bfBaseline =
-    bfGoal && windowBodyFat.length > 0
-      ? metricBaselineForGoal(windowBodyFat, bfGoal, currentBf)
+    bfGoal && (windowBodyFat.length > 0 || startSnapshot?.body_fat != null)
+      ? metricBaselineForGoalWindow(
+          windowBodyFat,
+          bfGoal,
+          currentBf,
+          hasGoalStartDate ? startSnapshot?.body_fat : null
+        )
       : null
   const bfProgress =
     bfGoal && bfBaseline != null
@@ -70,9 +90,18 @@ export default function DashboardWidgets({ measurements, profile }: DashboardWid
         ? progressFromBaseline(currentBf, bfGoal, currentBf)
         : 0
 
+  const startFfmi =
+    heightForCalc && startSnapshot
+      ? calculateFFMI(startSnapshot.weight, startSnapshot.body_fat, heightForCalc)
+      : null
   const ffmiBaseline =
-    ffmiGoal && currentFfmi != null && windowFfmi.length > 0
-      ? metricBaselineForGoal(windowFfmi, ffmiGoal, currentFfmi)
+    ffmiGoal && currentFfmi != null && (windowFfmi.length > 0 || startFfmi != null)
+      ? metricBaselineForGoalWindow(
+          windowFfmi,
+          ffmiGoal,
+          currentFfmi,
+          hasGoalStartDate ? startFfmi : null
+        )
       : null
   const ffmiProgress =
     ffmiGoal && currentFfmi != null && ffmiBaseline != null
@@ -81,9 +110,20 @@ export default function DashboardWidgets({ measurements, profile }: DashboardWid
         ? progressTowardHigherGoal(currentFfmi, ffmiGoal)
         : 0
 
+  const startNormalizedFfmi =
+    heightForCalc && startSnapshot
+      ? calculateNormalizedFFMI(startSnapshot.weight, startSnapshot.body_fat, heightForCalc)
+      : null
   const normalizedFfmiBaseline =
-    normalizedFfmiGoal && currentNormalizedFfmi != null && windowNormalizedFfmi.length > 0
-      ? metricBaselineForGoal(windowNormalizedFfmi, normalizedFfmiGoal, currentNormalizedFfmi)
+    normalizedFfmiGoal &&
+    currentNormalizedFfmi != null &&
+    (windowNormalizedFfmi.length > 0 || startNormalizedFfmi != null)
+      ? metricBaselineForGoalWindow(
+          windowNormalizedFfmi,
+          normalizedFfmiGoal,
+          currentNormalizedFfmi,
+          hasGoalStartDate ? startNormalizedFfmi : null
+        )
       : null
   const normalizedFfmiProgress =
     normalizedFfmiGoal && currentNormalizedFfmi != null && normalizedFfmiBaseline != null

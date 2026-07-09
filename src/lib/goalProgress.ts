@@ -10,12 +10,25 @@ export function progressTowardHigherGoal(current: number, goal: number): number 
   return Math.max(0, Math.min(100, (current / goal) * 100))
 }
 
-/** Journey start value: peak in window for a cut, trough in window for a bulk. */
+/** Journey start value when no explicit goal start date is set. */
 export function metricBaselineForGoal(values: number[], goal: number, current: number): number {
   if (values.length === 0) return current
   if (goal < current) return Math.max(...values)
   if (goal > current) return Math.min(...values)
   return current
+}
+
+/** Baseline from the snapshot on goal start date, else peak/trough across the window. */
+export function metricBaselineForGoalWindow(
+  values: number[],
+  goal: number,
+  current: number,
+  snapshotValue: number | null | undefined
+): number {
+  if (snapshotValue != null && Number.isFinite(snapshotValue)) {
+    return snapshotValue
+  }
+  return metricBaselineForGoal(values, goal, current)
 }
 
 /** Journey-based progress from a starting baseline toward goal (gain or loss). */

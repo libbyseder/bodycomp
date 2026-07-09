@@ -213,6 +213,7 @@ function AuthenticatedDashboard() {
         {activeTab === 'settings' && (
           <SettingsTab
             profile={safeProfile}
+            measurements={safeMeasurements}
             refetch={refetch}
             refetchProfile={refetchProfile}
             refetchWithings={refetchWithings}

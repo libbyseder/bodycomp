@@ -356,7 +356,7 @@ export default function TrendsChart({
         <div>
           <h2 className="text-xl sm:text-2xl font-semibold">Trends</h2>
           <p className="text-zinc-400 text-sm mt-1">{label}</p>
-          <GoalWindowNotice profile={profile} className="mt-1.5" />
+          <GoalWindowNotice profile={profile} measurements={measurements} className="mt-1.5" />
         </div>
 
         <div className="flex flex-col gap-2 sm:gap-0 sm:flex-row sm:flex-wrap sm:items-center">

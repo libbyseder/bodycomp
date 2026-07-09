@@ -34,7 +34,7 @@ export default function LogTab({
             {displayMeasurements.length} total{' '}
             {displayMeasurements.length === 1 ? 'entry' : 'entries'}
           </p>
-          <GoalWindowNotice profile={profile} className="mt-1" />
+          <GoalWindowNotice profile={profile} measurements={measurements} className="mt-1" />
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
           <button

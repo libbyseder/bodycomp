@@ -3,23 +3,19 @@ import { Target } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import type { Profile } from '../types'
-import { getGoalStartDate } from '../lib/goalWindow'
-
-function formatGoalStartDate(date: string): string {
-  const parsed = new Date(`${date}T12:00:00`)
-  if (Number.isNaN(parsed.getTime())) return date
-  return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
+import type { Measurement, Profile } from '../types'
+import { getGoalStartDate, goalStartDateLabel } from '../lib/goalWindow'
 
 interface GoalJourneySettingsProps {
   profile: Profile | null
+  measurements: Measurement[]
   onEditProfile: () => void
   onUpdate: () => void | Promise<void>
 }
 
 export default function GoalJourneySettings({
   profile,
+  measurements,
   onEditProfile,
   onUpdate,
 }: GoalJourneySettingsProps) {
@@ -59,7 +55,7 @@ export default function GoalJourneySettings({
           <p className="font-medium text-white">Goal journey</p>
           <p className="text-sm text-zinc-400 mt-0.5">
             {goalStartDate
-              ? `Progress counts from ${formatGoalStartDate(goalStartDate)}.`
+              ? goalStartDateLabel(measurements, profile) ?? 'Goal start date is set.'
               : 'Set a goal start date to measure progress from a specific point.'}
           </p>
         </div>

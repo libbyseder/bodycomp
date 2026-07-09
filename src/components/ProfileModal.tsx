@@ -312,7 +312,8 @@ export default function ProfileModal({
             )}
           </div>
           <p className="text-xs text-zinc-500 mt-2">
-            Leave empty to use all measurement history for goal progress.
+            Leave empty to use all measurement history. If there is no log on this date, the
+            nearest logged day on or after it is used (for example Jan 1 → Jan 9).
           </p>
           <label className="mt-4 flex items-start gap-3 cursor-pointer">
             <input
