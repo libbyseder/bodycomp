@@ -3,6 +3,7 @@ import { Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
 import type { Measurement, ProgressPhoto } from '../types'
+import { analyzeProgressPhoto } from '../lib/analyzeProgressPhoto'
 import {
   createSignedPhotoUrl,
   deleteProgressPhoto,
@@ -10,6 +11,7 @@ import {
   PHOTO_POSE_LABELS,
 } from '../lib/progressPhotos'
 import ProgressPhotoUpload from './ProgressPhotoUpload'
+import ProgressPhotoAnalysis from './ProgressPhotoAnalysis'
 
 interface ProgressPhotoGalleryProps {
   photos: ProgressPhoto[]
@@ -32,6 +34,7 @@ export default function ProgressPhotoGallery({
   const [photosWithUrls, setPhotosWithUrls] = useState<PhotoWithUrl[]>([])
   const [loadingUrls, setLoadingUrls] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [analyzingId, setAnalyzingId] = useState<string | null>(null)
 
   const measurementDates = useMemo(
     () => [...new Set(measurements.map((m) => m.date))].sort((a, b) => b.localeCompare(a)),
@@ -82,6 +85,21 @@ export default function ProgressPhotoGallery({
     return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]))
   }, [photosWithUrls])
 
+  const runAnalysis = async (photoId: string) => {
+    setAnalyzingId(photoId)
+    const result = await analyzeProgressPhoto(photoId)
+    setAnalyzingId(null)
+
+    if (!result.ok) {
+      toast.error(result.error || 'Analysis failed')
+      await onRefresh()
+      return
+    }
+
+    toast.success('AI analysis complete')
+    await onRefresh()
+  }
+
   const handleDelete = async (photo: ProgressPhoto) => {
     if (!confirm('Delete this progress photo?')) return
 
@@ -103,7 +121,8 @@ export default function ProgressPhotoGallery({
       <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
         <h2 className="text-lg font-semibold mb-1">Add progress photo</h2>
         <p className="text-sm text-zinc-400 mb-4">
-          Optional check-in photos linked to a measurement date. AI analysis comes in a later update.
+          Upload a check-in photo and optionally run AI body composition analysis. Estimates are
+          visual only — your scale data stays primary.
         </p>
 
         <label className="block text-sm text-zinc-400 mb-2">Link to date</label>
@@ -114,7 +133,11 @@ export default function ProgressPhotoGallery({
           className="w-full sm:w-auto mb-4 bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-violet-500"
         />
 
-        <ProgressPhotoUpload date={uploadDate} onUploaded={onRefresh} />
+        <ProgressPhotoUpload
+          date={uploadDate}
+          onUploaded={onRefresh}
+          analyzeAfterUpload
+        />
       </div>
 
       <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
@@ -142,42 +165,52 @@ export default function ProgressPhotoGallery({
                     {measurement && (
                       <span className="text-xs text-zinc-500">
                         {measurement.weight} lbs
-                        {measurement.body_fat != null ? ` · ${measurement.body_fat}% BF` : ''}
+                        {measurement.body_fat != null ? ` · ${measurement.body_fat}% BF (scale)` : ''}
                       </span>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {dayPhotos.map((photo) => (
                       <article
                         key={photo.id}
-                        className="group relative overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-950"
+                        className="overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-950"
                       >
-                        {photo.signedUrl ? (
-                          <img
-                            src={photo.signedUrl}
-                            alt={`${PHOTO_POSE_LABELS[photo.pose]} progress photo on ${date}`}
-                            className="aspect-[3/4] w-full object-cover"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="aspect-[3/4] flex items-center justify-center text-xs text-zinc-500">
-                            Preview unavailable
+                        <div className="relative">
+                          {photo.signedUrl ? (
+                            <img
+                              src={photo.signedUrl}
+                              alt={`${PHOTO_POSE_LABELS[photo.pose]} progress photo on ${date}`}
+                              className="aspect-[3/4] w-full object-cover"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="aspect-[3/4] flex items-center justify-center text-xs text-zinc-500">
+                              Preview unavailable
+                            </div>
+                          )}
+                          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3">
+                            <p className="text-xs font-medium text-white">
+                              {PHOTO_POSE_LABELS[photo.pose]}
+                            </p>
                           </div>
-                        )}
-                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3">
-                          <p className="text-xs font-medium text-white">
-                            {PHOTO_POSE_LABELS[photo.pose]}
-                          </p>
+                          <button
+                            type="button"
+                            onClick={() => void handleDelete(photo)}
+                            disabled={deletingId === photo.id}
+                            className="absolute top-2 right-2 p-2 rounded-xl bg-black/60 text-zinc-200 hover:bg-red-600/90 hover:text-white transition-colors disabled:opacity-50"
+                            aria-label="Delete photo"
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => void handleDelete(photo)}
-                          disabled={deletingId === photo.id}
-                          className="absolute top-2 right-2 p-2 rounded-xl bg-black/60 text-zinc-200 hover:bg-red-600/90 hover:text-white opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity disabled:opacity-50"
-                          aria-label="Delete photo"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        <div className="p-3">
+                          <ProgressPhotoAnalysis
+                            photo={photo}
+                            measurement={measurement}
+                            analyzing={analyzingId === photo.id}
+                            onAnalyze={() => runAnalysis(photo.id)}
+                          />
+                        </div>
                       </article>
                     ))}
                   </div>

@@ -140,6 +140,7 @@ export default function QuickLogModal({
               date={date}
               compact
               onUploaded={refetchPhotos}
+              analyzeAfterUpload
             />
           </div>
 

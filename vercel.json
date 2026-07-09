@@ -5,6 +5,9 @@
   "functions": {
     "api/withings/sync.js": {
       "maxDuration": 60
+    },
+    "api/photos/analyze.js": {
+      "maxDuration": 60
     }
   }
 }

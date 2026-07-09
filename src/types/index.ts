@@ -14,6 +14,21 @@ export interface Measurement {
 
 export type ProgressPhotoPose = 'front' | 'side' | 'back' | 'other'
 
+export type PhotoAnalysisStatus = 'pending' | 'complete' | 'failed'
+
+export interface PhotoAnalysis {
+  body_fat_percent: number | null
+  body_fat_range_low: number | null
+  body_fat_range_high: number | null
+  confidence: 'low' | 'medium' | 'high'
+  summary: string
+  posture_notes: string | null
+  muscle_observations: string | null
+  analyzed_at: string
+  model: string
+  disclaimer: string
+}
+
 export interface ProgressPhoto {
   id: string
   user_id: string
@@ -22,6 +37,9 @@ export interface ProgressPhoto {
   storage_path: string
   mime_type: string
   file_size_bytes: number | null
+  analysis_json: PhotoAnalysis | null
+  analysis_status: PhotoAnalysisStatus | null
+  analysis_error: string | null
   created_at: string
 }
 

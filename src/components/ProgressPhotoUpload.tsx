@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import type { ProgressPhotoPose } from '../types'
+import { analyzeProgressPhoto } from '../lib/analyzeProgressPhoto'
 import {
   PHOTO_POSE_LABELS,
   uploadProgressPhoto,
@@ -14,12 +15,14 @@ interface ProgressPhotoUploadProps {
   date: string
   onUploaded?: () => void | Promise<void>
   compact?: boolean
+  analyzeAfterUpload?: boolean
 }
 
 export default function ProgressPhotoUpload({
   date,
   onUploaded,
   compact = false,
+  analyzeAfterUpload = false,
 }: ProgressPhotoUploadProps) {
   const { user } = useAuth()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -27,6 +30,7 @@ export default function ProgressPhotoUpload({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [runAnalysis, setRunAnalysis] = useState(analyzeAfterUpload)
 
   const clearSelection = () => {
     setSelectedFile(null)
@@ -40,7 +44,15 @@ export default function ProgressPhotoUpload({
   }
 
   const handleFileChange = (file: File | null) => {
-    clearSelection()
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl)
+    }
+    setPreviewUrl(null)
+    setSelectedFile(null)
+    if (inputRef.current) {
+      inputRef.current.value = ''
+    }
+
     if (!file) return
 
     const validationError = validatePhotoFile(file)
@@ -75,14 +87,28 @@ export default function ProgressPhotoUpload({
       pose,
       selectedFile
     )
-    setUploading(false)
 
     if (error || !data) {
+      setUploading(false)
       toast.error(error || 'Failed to upload photo')
       return
     }
 
-    toast.success('Progress photo saved')
+    if (runAnalysis) {
+      toast.loading('Running AI analysis…', { id: 'photo-analysis' })
+      const analysisResult = await analyzeProgressPhoto(data.id)
+      toast.dismiss('photo-analysis')
+
+      if (!analysisResult.ok) {
+        toast.error(analysisResult.error || 'Photo saved, but analysis failed')
+      } else {
+        toast.success('Photo saved and analyzed')
+      }
+    } else {
+      toast.success('Progress photo saved')
+    }
+
+    setUploading(false)
     clearSelection()
     await onUploaded?.()
   }
@@ -124,6 +150,20 @@ export default function ProgressPhotoUpload({
               className="h-full w-full object-cover"
             />
           </div>
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={runAnalysis}
+              onChange={(e) => setRunAnalysis(e.target.checked)}
+              className="mt-1 rounded border-zinc-600 bg-zinc-800 text-violet-500 focus:ring-violet-500"
+            />
+            <span className="text-sm text-zinc-300 leading-snug">
+              Run AI body composition analysis after upload
+              <span className="block text-xs text-zinc-500 mt-1">
+                Visual estimate only — does not change your scale readings.
+              </span>
+            </span>
+          </label>
           <div className="flex gap-2">
             <button
               type="button"
@@ -139,7 +179,11 @@ export default function ProgressPhotoUpload({
               disabled={uploading}
               className="flex-1 py-2.5 rounded-2xl bg-violet-500 hover:bg-violet-600 text-sm font-medium transition-colors disabled:opacity-50"
             >
-              {uploading ? 'Uploading…' : 'Upload photo'}
+              {uploading
+                ? runAnalysis
+                  ? 'Uploading & analyzing…'
+                  : 'Uploading…'
+                : 'Upload photo'}
             </button>
           </div>
         </div>
