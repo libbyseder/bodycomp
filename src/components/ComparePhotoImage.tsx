@@ -1,12 +1,19 @@
-import type { CompareToolSettings } from '../lib/comparePhotoTools'
+import type { CompareAdjustLayer, CompareToolSettings } from '../lib/comparePhotoTools'
+import {
+  getLayerAdjust,
+  imageAdjustFilter,
+  imageAdjustTransform,
+} from '../lib/comparePhotoTools'
 
 interface ComparePhotoImageProps {
   url: string
   alt: string
   settings: CompareToolSettings
-  layer?: 'before' | 'after'
+  layer?: CompareAdjustLayer
   opacity?: number
   className?: string
+  /** When set, overrides storage URL (e.g. AI background-removed blob) */
+  displayUrl?: string | null
 }
 
 export default function ComparePhotoImage({
@@ -16,21 +23,26 @@ export default function ComparePhotoImage({
   layer = 'after',
   opacity = 1,
   className = '',
+  displayUrl,
 }: ComparePhotoImageProps) {
+  const adjust = getLayerAdjust(settings, layer)
   const blur = layer === 'after' ? settings.blurAmount : 0
   const objectClass = settings.fitContain ? 'object-contain' : 'object-cover'
+  const src = displayUrl || url
 
   return (
     <img
-      src={url}
+      src={src}
       alt={alt}
       draggable={false}
       decoding="async"
       className={`absolute inset-0 h-full w-full ${objectClass} ${className}`}
       style={{
-        transform: settings.flipHorizontal ? 'scaleX(-1)' : undefined,
-        filter: blur > 0 ? `blur(${blur}px)` : undefined,
+        transform: imageAdjustTransform(adjust, settings.flipHorizontal),
+        transformOrigin: 'center center',
+        filter: imageAdjustFilter(adjust, blur),
         opacity,
+        willChange: 'transform, filter',
       }}
     />
   )

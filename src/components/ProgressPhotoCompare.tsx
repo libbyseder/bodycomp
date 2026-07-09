@@ -1,13 +1,20 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, Columns2, SlidersHorizontal } from 'lucide-react'
+import toast from 'react-hot-toast'
 import BeforeAfterSlider from './BeforeAfterSlider'
 import ComparePhotoImage from './ComparePhotoImage'
 import ComparePhotoTools from './ComparePhotoTools'
 import {
   DEFAULT_COMPARE_TOOLS,
   compareBackgroundStyle,
+  getLayerAdjust,
+  patchLayerAdjust,
+  type CompareAdjustLayer,
   type CompareToolSettings,
+  type ImageAdjustSettings,
 } from '../lib/comparePhotoTools'
+import { removePhotoBackground, revokeObjectUrl } from '../lib/removePhotoBackground'
+import { usePinchPanZoom } from '../hooks/usePinchPanZoom'
 import type { Measurement, Profile, ProgressPhoto, ProgressPhotoPose } from '../types'
 import { measurementOnDate } from '../lib/goalWindow'
 import {
@@ -33,6 +40,100 @@ interface ProgressPhotoCompareProps {
 
 type CompareViewMode = 'split' | 'slider'
 
+function SplitPhotoPane({
+  photo,
+  url,
+  displayUrl,
+  caption,
+  measurement,
+  measurementSummary,
+  layer,
+  settings,
+  onSettingsChange,
+}: {
+  photo: ProgressPhoto
+  url: string
+  displayUrl?: string | null
+  caption: string
+  measurement: Measurement | null | undefined
+  measurementSummary: string | null
+  layer: CompareAdjustLayer
+  settings: CompareToolSettings
+  onSettingsChange: (patch: Partial<CompareToolSettings>) => void
+}) {
+  const paneRef = useRef<HTMLDivElement>(null)
+  const settingsRef = useRef(settings)
+  settingsRef.current = settings
+
+  const alignThisLayer = settings.alignMode && settings.activeLayer === layer
+
+  const { attach } = usePinchPanZoom({
+    enabled: alignThisLayer,
+    getAdjust: () => getLayerAdjust(settingsRef.current, layer),
+    onAdjust: (patch: Partial<ImageAdjustSettings>) => {
+      onSettingsChange(patchLayerAdjust(settingsRef.current, layer, patch))
+    },
+  })
+
+  useEffect(() => {
+    return attach(paneRef.current)
+  }, [attach, alignThisLayer])
+
+  // Tap pane to select active layer while aligning
+  const selectLayer = () => {
+    if (settings.alignMode && settings.activeLayer !== layer) {
+      onSettingsChange({ activeLayer: layer })
+    }
+  }
+
+  return (
+    <article
+      className={`overflow-hidden rounded-2xl border ${
+        alignThisLayer ? 'border-violet-500/60 ring-1 ring-violet-500/30' : 'border-zinc-700'
+      }`}
+      style={compareBackgroundStyle(settings.background)}
+      onPointerDown={selectLayer}
+    >
+      <div className="px-3 py-2 border-b border-zinc-800/80 bg-black/20">
+        <p className="text-sm font-medium text-white">
+          {caption} · {formatPhotoDate(photo.date)}
+        </p>
+        {measurementSummary ? (
+          <p className="text-xs text-zinc-500 mt-0.5">{measurementSummary}</p>
+        ) : (
+          <p className="text-xs text-zinc-600 mt-0.5">No scale log this day</p>
+        )}
+      </div>
+      <div
+        ref={paneRef}
+        className={`relative aspect-[3/4] touch-none ${
+          alignThisLayer ? 'cursor-grab active:cursor-grabbing' : ''
+        }`}
+      >
+        <ComparePhotoImage
+          url={url}
+          displayUrl={displayUrl}
+          alt={`${caption} ${PHOTO_POSE_LABELS[photo.pose]} photo`}
+          settings={settings}
+          layer={layer}
+        />
+        {alignThisLayer && (
+          <span className="absolute bottom-2 left-1/2 z-10 -translate-x-1/2 rounded-md bg-violet-600/90 px-2 py-0.5 text-[10px] font-medium text-white">
+            Pinch / drag to align
+          </span>
+        )}
+      </div>
+      <div className="p-3 bg-zinc-950/90">
+        <ProgressPhotoAnalysis
+          photo={photo}
+          measurement={measurement ?? undefined}
+          compact
+        />
+      </div>
+    </article>
+  )
+}
+
 export default function ProgressPhotoCompare({
   photos,
   measurements,
@@ -54,9 +155,26 @@ export default function ProgressPhotoCompare({
   )
   const [sliderResetToken, setSliderResetToken] = useState(0)
 
-  const updateTools = (patch: Partial<CompareToolSettings>) => {
+  // AI cutout blob URLs keyed by storage path
+  const [bgRemovedByPath, setBgRemovedByPath] = useState<Record<string, string>>({})
+  const [removingLayer, setRemovingLayer] = useState<CompareAdjustLayer | 'both' | null>(
+    null
+  )
+  const bgRemovedByPathRef = useRef(bgRemovedByPath)
+  bgRemovedByPathRef.current = bgRemovedByPath
+
+  const updateTools = useCallback((patch: Partial<CompareToolSettings>) => {
     setToolSettings((current) => ({ ...current, ...patch }))
-  }
+  }, [])
+
+  // Revoke blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      for (const url of Object.values(bgRemovedByPathRef.current)) {
+        revokeObjectUrl(url)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     if (!initialPose) {
@@ -120,6 +238,95 @@ export default function ProgressPhotoCompare({
     return resolveComparePair(photos, activePose, resolvedBeforeDate, resolvedAfterDate)
   }, [photos, activePose, resolvedBeforeDate, resolvedAfterDate])
 
+  const handleRemoveBackground = useCallback(
+    async (layer: CompareAdjustLayer | 'both') => {
+      if (!pair) return
+
+      const targets: { layer: CompareAdjustLayer; path: string; url: string }[] = []
+
+      if (layer === 'before' || layer === 'both') {
+        const url = getPhotoUrl(pair.before.storage_path)
+        if (url) {
+          targets.push({
+            layer: 'before',
+            path: pair.before.storage_path,
+            url,
+          })
+        }
+      }
+      if (layer === 'after' || layer === 'both') {
+        const url = getPhotoUrl(pair.after.storage_path)
+        if (url) {
+          targets.push({
+            layer: 'after',
+            path: pair.after.storage_path,
+            url,
+          })
+        }
+      }
+
+      if (targets.length === 0) {
+        toast.error('Photo URL not ready')
+        return
+      }
+
+      setRemovingLayer(layer)
+      const toastId = toast.loading(
+        targets.length > 1
+          ? 'Removing backgrounds (first run downloads AI model)…'
+          : 'Removing background (first run downloads AI model)…'
+      )
+
+      try {
+        for (const target of targets) {
+          if (bgRemovedByPathRef.current[target.path]) continue
+          const blobUrl = await removePhotoBackground(target.url)
+          setBgRemovedByPath((prev) => {
+            const old = prev[target.path]
+            if (old) revokeObjectUrl(old)
+            return { ...prev, [target.path]: blobUrl }
+          })
+        }
+        toast.success(
+          targets.length > 1 ? 'Backgrounds removed' : 'Background removed',
+          { id: toastId }
+        )
+        // Suggest transparent-friendly background
+        setToolSettings((current) =>
+          current.background === 'dark' || current.background === 'black'
+            ? { ...current, background: 'checkered', fitContain: true }
+            : current
+        )
+      } catch (err) {
+        console.error(err)
+        toast.error(
+          err instanceof Error ? err.message : 'Background removal failed',
+          { id: toastId }
+        )
+      } finally {
+        setRemovingLayer(null)
+      }
+    },
+    [pair, getPhotoUrl]
+  )
+
+  const handleRestoreBackground = useCallback((layer: CompareAdjustLayer | 'both') => {
+    if (!pair) return
+    setBgRemovedByPath((prev) => {
+      const next = { ...prev }
+      const paths: string[] = []
+      if (layer === 'before' || layer === 'both') paths.push(pair.before.storage_path)
+      if (layer === 'after' || layer === 'both') paths.push(pair.after.storage_path)
+      for (const path of paths) {
+        if (next[path]) {
+          revokeObjectUrl(next[path])
+          delete next[path]
+        }
+      }
+      return next
+    })
+  }, [pair])
+
   if (!initialPose || !activePose || !defaultDates || !resolvedBeforeDate || !resolvedAfterDate) {
     return (
       <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
@@ -157,7 +364,8 @@ export default function ProgressPhotoCompare({
         <div>
           <h2 className="text-lg font-semibold">Compare</h2>
           <p className="text-sm text-zinc-400 mt-1">
-            Drag the slider or view side-by-side — same pose, two dates.
+            Drag the slider or view side-by-side — align, adjust lighting, or cut out
+            backgrounds.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -276,6 +484,8 @@ export default function ProgressPhotoCompare({
           {(() => {
             const beforeUrl = getPhotoUrl(pair.before.storage_path)
             const afterUrl = getPhotoUrl(pair.after.storage_path)
+            const beforeDisplayUrl = bgRemovedByPath[pair.before.storage_path] ?? null
+            const afterDisplayUrl = bgRemovedByPath[pair.after.storage_path] ?? null
             const eitherLoading =
               isPhotoLoading(pair.before.storage_path) ||
               isPhotoLoading(pair.after.storage_path)
@@ -298,34 +508,44 @@ export default function ProgressPhotoCompare({
 
             const leftUrl = toolSettings.swapped ? afterUrl : beforeUrl
             const rightUrl = toolSettings.swapped ? beforeUrl : afterUrl
-            const leftLabel = toolSettings.swapped
-              ? `After · ${formatPhotoDate(pair.after.date)}`
-              : `Before · ${formatPhotoDate(pair.before.date)}`
-            const rightLabel = toolSettings.swapped
-              ? `Before · ${formatPhotoDate(pair.before.date)}`
-              : `After · ${formatPhotoDate(pair.after.date)}`
+            const leftDisplayUrl = toolSettings.swapped ? afterDisplayUrl : beforeDisplayUrl
+            const rightDisplayUrl = toolSettings.swapped ? beforeDisplayUrl : afterDisplayUrl
             const leftMeasurement = toolSettings.swapped ? afterMeasurement : beforeMeasurement
             const rightMeasurement = toolSettings.swapped ? beforeMeasurement : afterMeasurement
             const leftPhoto = toolSettings.swapped ? pair.after : pair.before
             const rightPhoto = toolSettings.swapped ? pair.before : pair.after
             const leftCaption = toolSettings.swapped ? 'After' : 'Before'
             const rightCaption = toolSettings.swapped ? 'Before' : 'After'
+            // Visual left/right map to original before/after layers for adjust state
+            const leftLayer: CompareAdjustLayer = toolSettings.swapped ? 'after' : 'before'
+            const rightLayer: CompareAdjustLayer = toolSettings.swapped ? 'before' : 'after'
+
+            const toolsProps = {
+              settings: toolSettings,
+              onChange: updateTools,
+              onResetSlider: () => setSliderResetToken((value) => value + 1),
+              beforeUrl,
+              afterUrl,
+              beforeBgRemoved: Boolean(beforeDisplayUrl),
+              afterBgRemoved: Boolean(afterDisplayUrl),
+              removingLayer,
+              onRemoveBackground: handleRemoveBackground,
+              onRestoreBackground: handleRestoreBackground,
+            }
 
             if (viewMode === 'slider') {
               return (
                 <div className="max-w-lg mx-auto space-y-4">
-                  <ComparePhotoTools
-                    settings={toolSettings}
-                    onChange={updateTools}
-                    onResetSlider={() => setSliderResetToken((value) => value + 1)}
-                    showOverlayControls
-                  />
+                  <ComparePhotoTools {...toolsProps} showOverlayControls />
                   <BeforeAfterSlider
                     beforeUrl={beforeUrl}
                     afterUrl={afterUrl}
+                    beforeDisplayUrl={beforeDisplayUrl}
+                    afterDisplayUrl={afterDisplayUrl}
                     beforeLabel={`Before · ${formatPhotoDate(pair.before.date)}`}
                     afterLabel={`After · ${formatPhotoDate(pair.after.date)}`}
                     settings={toolSettings}
+                    onSettingsChange={updateTools}
                     resetToken={sliderResetToken}
                   />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -359,56 +579,36 @@ export default function ProgressPhotoCompare({
 
             return (
               <div className="space-y-4">
-                <ComparePhotoTools
-                  settings={toolSettings}
-                  onChange={updateTools}
-                  onResetSlider={() => setSliderResetToken((value) => value + 1)}
-                  showOverlayControls={false}
-                />
+                <ComparePhotoTools {...toolsProps} showOverlayControls={false} />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {([
-                    { photo: leftPhoto, url: leftUrl, caption: leftCaption, measurement: leftMeasurement, layer: 'before' as const },
-                    { photo: rightPhoto, url: rightUrl, caption: rightCaption, measurement: rightMeasurement, layer: 'after' as const },
-                  ] as const).map(({ photo, url, caption, measurement, layer }) => {
-                    const measurementSummary = formatMeasurementSummary(
-                      measurement,
+                  <SplitPhotoPane
+                    photo={leftPhoto}
+                    url={leftUrl}
+                    displayUrl={leftDisplayUrl}
+                    caption={leftCaption}
+                    measurement={leftMeasurement}
+                    measurementSummary={formatMeasurementSummary(
+                      leftMeasurement,
                       heightInches
-                    )
-
-                    return (
-                      <article
-                        key={photo.id}
-                        className="overflow-hidden rounded-2xl border border-zinc-700"
-                        style={compareBackgroundStyle(toolSettings.background)}
-                      >
-                        <div className="px-3 py-2 border-b border-zinc-800/80 bg-black/20">
-                          <p className="text-sm font-medium text-white">
-                            {caption} · {formatPhotoDate(photo.date)}
-                          </p>
-                          {measurementSummary ? (
-                            <p className="text-xs text-zinc-500 mt-0.5">{measurementSummary}</p>
-                          ) : (
-                            <p className="text-xs text-zinc-600 mt-0.5">No scale log this day</p>
-                          )}
-                        </div>
-                        <div className="relative aspect-[3/4]">
-                          <ComparePhotoImage
-                            url={url}
-                            alt={`${caption} ${PHOTO_POSE_LABELS[photo.pose]} photo`}
-                            settings={toolSettings}
-                            layer={layer}
-                          />
-                        </div>
-                        <div className="p-3 bg-zinc-950/90">
-                          <ProgressPhotoAnalysis
-                            photo={photo}
-                            measurement={measurement ?? undefined}
-                            compact
-                          />
-                        </div>
-                      </article>
-                    )
-                  })}
+                    )}
+                    layer={leftLayer}
+                    settings={toolSettings}
+                    onSettingsChange={updateTools}
+                  />
+                  <SplitPhotoPane
+                    photo={rightPhoto}
+                    url={rightUrl}
+                    displayUrl={rightDisplayUrl}
+                    caption={rightCaption}
+                    measurement={rightMeasurement}
+                    measurementSummary={formatMeasurementSummary(
+                      rightMeasurement,
+                      heightInches
+                    )}
+                    layer={rightLayer}
+                    settings={toolSettings}
+                    onSettingsChange={updateTools}
+                  />
                 </div>
               </div>
             )

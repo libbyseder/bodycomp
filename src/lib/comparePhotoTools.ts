@@ -1,6 +1,20 @@
 import type { CSSProperties } from 'react'
 
 export type CompareBackground = 'dark' | 'black' | 'white' | 'light' | 'checkered'
+export type CompareAdjustLayer = 'before' | 'after'
+
+export interface ImageAdjustSettings {
+  /** Scale multiplier (1 = 100%) */
+  scale: number
+  /** Horizontal pan in pixels */
+  offsetX: number
+  /** Vertical pan in pixels */
+  offsetY: number
+  /** CSS brightness percentage (100 = normal) */
+  brightness: number
+  /** CSS contrast percentage (100 = normal) */
+  contrast: number
+}
 
 export interface CompareToolSettings {
   swapped: boolean
@@ -10,6 +24,20 @@ export interface CompareToolSettings {
   blurAmount: number
   background: CompareBackground
   fitContain: boolean
+  /** When true, single-finger drag pans the selected layer instead of moving the slider */
+  alignMode: boolean
+  /** Which photo is being adjusted by pinch/pan and per-image controls */
+  activeLayer: CompareAdjustLayer
+  beforeAdjust: ImageAdjustSettings
+  afterAdjust: ImageAdjustSettings
+}
+
+export const DEFAULT_IMAGE_ADJUST: ImageAdjustSettings = {
+  scale: 1,
+  offsetX: 0,
+  offsetY: 0,
+  brightness: 100,
+  contrast: 100,
 }
 
 export const DEFAULT_COMPARE_TOOLS: CompareToolSettings = {
@@ -20,6 +48,62 @@ export const DEFAULT_COMPARE_TOOLS: CompareToolSettings = {
   blurAmount: 0,
   background: 'dark',
   fitContain: false,
+  alignMode: false,
+  activeLayer: 'before',
+  beforeAdjust: { ...DEFAULT_IMAGE_ADJUST },
+  afterAdjust: { ...DEFAULT_IMAGE_ADJUST },
+}
+
+export function getLayerAdjust(
+  settings: CompareToolSettings,
+  layer: CompareAdjustLayer
+): ImageAdjustSettings {
+  return layer === 'before' ? settings.beforeAdjust : settings.afterAdjust
+}
+
+export function patchLayerAdjust(
+  settings: CompareToolSettings,
+  layer: CompareAdjustLayer,
+  patch: Partial<ImageAdjustSettings>
+): Partial<CompareToolSettings> {
+  const key = layer === 'before' ? 'beforeAdjust' : 'afterAdjust'
+  const current = getLayerAdjust(settings, layer)
+  return {
+    [key]: { ...current, ...patch },
+  }
+}
+
+export function imageAdjustFilter(
+  adjust: ImageAdjustSettings,
+  blurAmount = 0
+): string | undefined {
+  const parts: string[] = []
+  if (adjust.brightness !== 100) parts.push(`brightness(${adjust.brightness}%)`)
+  if (adjust.contrast !== 100) parts.push(`contrast(${adjust.contrast}%)`)
+  if (blurAmount > 0) parts.push(`blur(${blurAmount}px)`)
+  return parts.length > 0 ? parts.join(' ') : undefined
+}
+
+export function imageAdjustTransform(
+  adjust: ImageAdjustSettings,
+  flipHorizontal: boolean
+): string {
+  const parts = [
+    `translate(${adjust.offsetX}px, ${adjust.offsetY}px)`,
+    `scale(${adjust.scale})`,
+  ]
+  if (flipHorizontal) parts.push('scaleX(-1)')
+  return parts.join(' ')
+}
+
+export function isDefaultImageAdjust(adjust: ImageAdjustSettings): boolean {
+  return (
+    adjust.scale === DEFAULT_IMAGE_ADJUST.scale &&
+    adjust.offsetX === DEFAULT_IMAGE_ADJUST.offsetX &&
+    adjust.offsetY === DEFAULT_IMAGE_ADJUST.offsetY &&
+    adjust.brightness === DEFAULT_IMAGE_ADJUST.brightness &&
+    adjust.contrast === DEFAULT_IMAGE_ADJUST.contrast
+  )
 }
 
 export function compareBackgroundStyle(background: CompareBackground): CSSProperties {
@@ -58,3 +142,22 @@ export const COMPARE_BACKGROUND_ORDER: CompareBackground[] = [
   'white',
   'checkered',
 ]
+
+export const MIN_COMPARE_SCALE = 0.5
+export const MAX_COMPARE_SCALE = 4
+export const MIN_BRIGHTNESS = 40
+export const MAX_BRIGHTNESS = 180
+export const MIN_CONTRAST = 40
+export const MAX_CONTRAST = 180
+
+export function clampScale(scale: number): number {
+  return Math.min(MAX_COMPARE_SCALE, Math.max(MIN_COMPARE_SCALE, scale))
+}
+
+export function clampBrightness(value: number): number {
+  return Math.min(MAX_BRIGHTNESS, Math.max(MIN_BRIGHTNESS, value))
+}
+
+export function clampContrast(value: number): number {
+  return Math.min(MAX_CONTRAST, Math.max(MIN_CONTRAST, value))
+}

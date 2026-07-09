@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { GripVertical } from 'lucide-react'
-import type { CompareToolSettings } from '../lib/comparePhotoTools'
-import { compareBackgroundStyle } from '../lib/comparePhotoTools'
+import type { CompareToolSettings, ImageAdjustSettings } from '../lib/comparePhotoTools'
+import {
+  compareBackgroundStyle,
+  getLayerAdjust,
+  patchLayerAdjust,
+} from '../lib/comparePhotoTools'
+import { usePinchPanZoom } from '../hooks/usePinchPanZoom'
 import ComparePhotoImage from './ComparePhotoImage'
 
 interface BeforeAfterSliderProps {
@@ -10,6 +15,9 @@ interface BeforeAfterSliderProps {
   beforeLabel: string
   afterLabel: string
   settings: CompareToolSettings
+  onSettingsChange?: (patch: Partial<CompareToolSettings>) => void
+  beforeDisplayUrl?: string | null
+  afterDisplayUrl?: string | null
   className?: string
   sliderPosition?: number
   onSliderPositionChange?: (position: number) => void
@@ -22,6 +30,9 @@ export default function BeforeAfterSlider({
   beforeLabel,
   afterLabel,
   settings,
+  onSettingsChange,
+  beforeDisplayUrl,
+  afterDisplayUrl,
   className = '',
   sliderPosition,
   onSliderPositionChange,
@@ -30,6 +41,8 @@ export default function BeforeAfterSlider({
   const containerRef = useRef<HTMLDivElement>(null)
   const [internalPosition, setInternalPosition] = useState(50)
   const draggingRef = useRef(false)
+  const settingsRef = useRef(settings)
+  settingsRef.current = settings
 
   const position = sliderPosition ?? internalPosition
 
@@ -81,36 +94,59 @@ export default function BeforeAfterSlider({
   }, [updateFromClientX])
 
   const startDrag = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (settings.overlayMode) return
+    if (settings.overlayMode || settings.alignMode) return
     draggingRef.current = true
     event.currentTarget.setPointerCapture(event.pointerId)
     updateFromClientX(event.clientX)
   }
 
+  const { attach } = usePinchPanZoom({
+    enabled: settings.alignMode && Boolean(onSettingsChange),
+    getAdjust: () => getLayerAdjust(settingsRef.current, settingsRef.current.activeLayer),
+    onAdjust: (patch: Partial<ImageAdjustSettings>) => {
+      const current = settingsRef.current
+      onSettingsChange?.(patchLayerAdjust(current, current.activeLayer, patch))
+    },
+  })
+
+  useEffect(() => {
+    return attach(containerRef.current)
+  }, [attach, settings.alignMode])
+
   const displayBeforeUrl = settings.swapped ? afterUrl : beforeUrl
   const displayAfterUrl = settings.swapped ? beforeUrl : afterUrl
   const displayBeforeLabel = settings.swapped ? afterLabel : beforeLabel
   const displayAfterLabel = settings.swapped ? beforeLabel : afterLabel
+  // Map display layer to original before/after for adjust + cutout URLs
+  const leftIsOriginalBefore = !settings.swapped
+  const visualBeforeDisplay = settings.swapped ? afterDisplayUrl : beforeDisplayUrl
+  const visualAfterDisplay = settings.swapped ? beforeDisplayUrl : afterDisplayUrl
+  const visualBeforeLayer = leftIsOriginalBefore ? 'before' : 'after'
+  const visualAfterLayer = leftIsOriginalBefore ? 'after' : 'before'
 
   return (
     <div
       ref={containerRef}
-      className={`relative aspect-[3/4] overflow-hidden rounded-2xl border border-zinc-700 select-none touch-none ${className}`}
+      className={`relative aspect-[3/4] overflow-hidden rounded-2xl border border-zinc-700 select-none touch-none ${
+        settings.alignMode ? 'cursor-grab active:cursor-grabbing' : ''
+      } ${className}`}
       style={compareBackgroundStyle(settings.background)}
     >
       <ComparePhotoImage
         url={displayAfterUrl}
+        displayUrl={visualAfterDisplay}
         alt={displayAfterLabel}
         settings={settings}
-        layer="after"
+        layer={visualAfterLayer}
       />
 
       {settings.overlayMode ? (
         <ComparePhotoImage
           url={displayBeforeUrl}
+          displayUrl={visualBeforeDisplay}
           alt={displayBeforeLabel}
           settings={settings}
-          layer="before"
+          layer={visualBeforeLayer}
           opacity={settings.overlayOpacity / 100}
         />
       ) : (
@@ -120,15 +156,16 @@ export default function BeforeAfterSlider({
         >
           <ComparePhotoImage
             url={displayBeforeUrl}
+            displayUrl={visualBeforeDisplay}
             alt={displayBeforeLabel}
             settings={settings}
-            layer="before"
+            layer={visualBeforeLayer}
             opacity={settings.overlayOpacity / 100}
           />
         </div>
       )}
 
-      {!settings.overlayMode && (
+      {!settings.overlayMode && !settings.alignMode && (
         <div
           className="absolute inset-y-0 z-10 flex w-10 -translate-x-1/2 cursor-ew-resize items-center justify-center"
           style={{ left: `${position}%` }}
@@ -145,6 +182,12 @@ export default function BeforeAfterSlider({
             </span>
           </div>
         </div>
+      )}
+
+      {settings.alignMode && (
+        <span className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-lg bg-violet-600/90 px-2.5 py-1 text-[11px] font-medium text-white shadow-lg">
+          Aligning {settings.activeLayer} · pinch / drag / scroll
+        </span>
       )}
 
       <span className="absolute left-3 top-3 z-20 rounded-lg bg-black/60 px-2 py-1 text-xs font-medium text-white">
