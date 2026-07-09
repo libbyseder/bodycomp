@@ -18,6 +18,8 @@ interface ProgressPhotoUploadProps {
   analyzeAfterUpload?: boolean
 }
 
+const PHOTO_ACCEPT = 'image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif'
+
 export default function ProgressPhotoUpload({
   date,
   onUploaded,
@@ -25,7 +27,8 @@ export default function ProgressPhotoUpload({
   analyzeAfterUpload = false,
 }: ProgressPhotoUploadProps) {
   const { user } = useAuth()
-  const inputRef = useRef<HTMLInputElement>(null)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
   const [pose, setPose] = useState<ProgressPhotoPose>('front')
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -38,27 +41,23 @@ export default function ProgressPhotoUpload({
       URL.revokeObjectURL(previewUrl)
     }
     setPreviewUrl(null)
-    if (inputRef.current) {
-      inputRef.current.value = ''
-    }
+    if (galleryInputRef.current) galleryInputRef.current.value = ''
+    if (cameraInputRef.current) cameraInputRef.current.value = ''
   }
 
   const handleFileChange = (file: File | null) => {
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl)
-    }
-    setPreviewUrl(null)
-    setSelectedFile(null)
-    if (inputRef.current) {
-      inputRef.current.value = ''
-    }
-
     if (!file) return
 
     const validationError = validatePhotoFile(file)
     if (validationError) {
       toast.error(validationError)
+      if (galleryInputRef.current) galleryInputRef.current.value = ''
+      if (cameraInputRef.current) cameraInputRef.current.value = ''
       return
+    }
+
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl)
     }
 
     setSelectedFile(file)
@@ -113,6 +112,9 @@ export default function ProgressPhotoUpload({
     await onUploaded?.()
   }
 
+  const hiddenInputClass =
+    'absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0 [clip:rect(0,0,0,0)]'
+
   return (
     <div className={compact ? 'space-y-3' : 'space-y-4'}>
       <div className="flex flex-wrap gap-2">
@@ -132,13 +134,32 @@ export default function ProgressPhotoUpload({
         ))}
       </div>
 
+      {/* Gallery: no capture — opens photo library on mobile */}
       <input
-        ref={inputRef}
+        ref={galleryInputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+        accept={PHOTO_ACCEPT}
+        className={hiddenInputClass}
+        aria-hidden
+        tabIndex={-1}
+        onChange={(e) => {
+          handleFileChange(e.target.files?.[0] ?? null)
+          e.target.value = ''
+        }}
+      />
+      {/* Camera: capture opens rear camera on mobile */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept={PHOTO_ACCEPT}
         capture="environment"
-        className="hidden"
-        onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
+        className={hiddenInputClass}
+        aria-hidden
+        tabIndex={-1}
+        onChange={(e) => {
+          handleFileChange(e.target.files?.[0] ?? null)
+          e.target.value = ''
+        }}
       />
 
       {previewUrl ? (
@@ -191,16 +212,16 @@ export default function ProgressPhotoUpload({
         <div className={`grid gap-2 ${compact ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
           <button
             type="button"
-            onClick={() => inputRef.current?.click()}
-            className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm transition-colors"
+            onClick={() => galleryInputRef.current?.click()}
+            className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm transition-colors touch-manipulation"
           >
             <ImagePlus size={16} />
             Choose photo
           </button>
           <button
             type="button"
-            onClick={() => inputRef.current?.click()}
-            className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm transition-colors"
+            onClick={() => cameraInputRef.current?.click()}
+            className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm transition-colors touch-manipulation"
           >
             <Camera size={16} />
             Take photo

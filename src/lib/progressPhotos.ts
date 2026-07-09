@@ -4,6 +4,16 @@ import type { ProgressPhoto, ProgressPhotoPose } from '../types'
 export const PROGRESS_PHOTOS_BUCKET = 'progress-photos'
 export const MAX_PHOTO_BYTES = 10 * 1024 * 1024
 
+function inferMimeFromName(filename: string): string | null {
+  const lower = filename.toLowerCase()
+  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg'
+  if (lower.endsWith('.png')) return 'image/png'
+  if (lower.endsWith('.webp')) return 'image/webp'
+  if (lower.endsWith('.heic')) return 'image/heic'
+  if (lower.endsWith('.heif')) return 'image/heif'
+  return null
+}
+
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
   'image/png',
@@ -35,7 +45,8 @@ function extensionForMime(mimeType: string): string {
 }
 
 export function validatePhotoFile(file: File): string | null {
-  if (!ALLOWED_MIME_TYPES.has(file.type)) {
+  const mime = file.type || inferMimeFromName(file.name)
+  if (!mime || !ALLOWED_MIME_TYPES.has(mime)) {
     return 'Please choose a JPEG, PNG, or WebP image'
   }
   if (file.size > MAX_PHOTO_BYTES) {
@@ -65,15 +76,16 @@ export async function uploadProgressPhoto(
     return { data: null, error: validationError }
   }
 
+  const mimeType = file.type || inferMimeFromName(file.name) || 'image/jpeg'
   const photoId = crypto.randomUUID()
-  const storagePath = buildPhotoStoragePath(userId, date, photoId, file.type)
+  const storagePath = buildPhotoStoragePath(userId, date, photoId, mimeType)
 
   const { error: uploadError } = await supabase.storage
     .from(PROGRESS_PHOTOS_BUCKET)
     .upload(storagePath, file, {
       cacheControl: '3600',
       upsert: false,
-      contentType: file.type,
+      contentType: mimeType,
     })
 
   if (uploadError) {
@@ -88,7 +100,7 @@ export async function uploadProgressPhoto(
       date,
       pose,
       storage_path: storagePath,
-      mime_type: file.type,
+      mime_type: mimeType,
       file_size_bytes: file.size,
     })
     .select('*')
