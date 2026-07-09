@@ -11,7 +11,13 @@ import {
   Filler,
 } from 'chart.js'
 import { Line } from 'react-chartjs-2'
-import type { Measurement, Profile } from '../types'
+import type { Measurement, Profile, ProgressPhoto } from '../types'
+import {
+  analyzedPhotoCount,
+  buildAiBodyFatSeries,
+  buildPhotoMarkerValues,
+  photoDaysInLabels,
+} from '../lib/photoChartData'
 import { calculateFFMI, calculateNormalizedFFMI } from '../lib/calculateFFMI'
 import {
   computeSimpleMovingAverage,
@@ -47,6 +53,7 @@ ChartJS.register(
 interface SmoothedTrendsChartProps {
   measurements: Measurement[]
   profile: Profile | null
+  photos?: ProgressPhoto[]
   title?: string
   subtitle?: string
   className?: string
@@ -90,6 +97,13 @@ const CHART_OPTION_COLUMNS: {
       { key: 'bodyFatGoal', label: 'Body fat goal' },
       { key: 'ffmiGoal', label: 'FFMI goal' },
       { key: 'normalizedFfmiGoal', label: 'Norm. FFMI goal' },
+    ],
+  },
+  {
+    title: 'Photos',
+    options: [
+      { key: 'photoMarkers', label: 'Photo check-ins' },
+      { key: 'aiBodyFatTrend', label: 'AI body fat (photos)' },
     ],
   },
 ]
@@ -145,6 +159,7 @@ function periodDelta(values: (number | null)[]): number | null {
 export default function SmoothedTrendsChart({
   measurements,
   profile,
+  photos = [],
   title = 'Smoothed Trends',
   subtitle,
   className = 'mb-6 sm:mb-8',
@@ -242,6 +257,32 @@ export default function SmoothedTrendsChart({
   const bodyFatGoal = profile?.target_body_fat ?? null
   const ffmiGoal = profile?.target_ffmi ?? null
   const normalizedFfmiGoal = profile?.target_normalized_ffmi ?? null
+
+  const photoDays = useMemo(
+    () => photoDaysInLabels(photos, labels),
+    [photos, labels]
+  )
+
+  const photoMarkerAnchor = useMemo(
+    () =>
+      visibility.weightTrend
+        ? weightTrend
+        : periodPoints.map((point) => point.weight),
+    [visibility.weightTrend, weightTrend, periodPoints]
+  )
+
+  const photoMarkerValues = useMemo(
+    () => buildPhotoMarkerValues(labels, photos, photoMarkerAnchor),
+    [labels, photos, photoMarkerAnchor]
+  )
+
+  const aiBodyFatValues = useMemo(
+    () => buildAiBodyFatSeries(labels, photos),
+    [labels, photos]
+  )
+
+  const hasPhotoMarkers = photoDays.length > 0
+  const hasAiBodyFat = analyzedPhotoCount(photos) > 0
 
   const chartData = {
     labels,
@@ -381,6 +422,32 @@ export default function SmoothedTrendsChart({
           pointStyle: 'circle',
           yAxisID: 'y2',
         },
+      visibility.photoMarkers &&
+        hasPhotoMarkers && {
+          label: 'Photo check-ins',
+          data: photoMarkerValues,
+          borderColor: '#c084fc',
+          backgroundColor: '#c084fc',
+          borderWidth: 0,
+          pointRadius: isMobile ? 6 : 7,
+          pointHoverRadius: 9,
+          pointStyle: 'rectRounded' as const,
+          showLine: false,
+          spanGaps: false,
+          yAxisID: 'y',
+        },
+      visibility.aiBodyFatTrend &&
+        hasAiBodyFat && {
+          label: 'AI Body Fat (photos)',
+          data: aiBodyFatValues,
+          borderColor: '#e879f9',
+          borderWidth: 2,
+          pointRadius: isMobile ? 3 : 4,
+          pointHoverRadius: 6,
+          tension: 0.2,
+          spanGaps: true,
+          yAxisID: 'y1',
+        },
     ].filter(Boolean),
   }
 
@@ -409,9 +476,18 @@ export default function SmoothedTrendsChart({
           label: (context: {
             dataset: { label?: string }
             parsed: { y: number | null }
+            dataIndex: number
           }) => {
             const value = context.parsed.y
             if (value == null) return `${context.dataset.label}: —`
+            if (context.dataset.label === 'Photo check-ins') {
+              const day = photoDays.find(
+                (entry) => entry.date === labels[context.dataIndex]
+              )
+              if (!day) return 'Photo check-in'
+              const poseText = day.poseLabels.join(', ')
+              return `Photo check-in: ${day.count} photo${day.count === 1 ? '' : 's'} (${poseText})`
+            }
             if (context.dataset.label?.includes('Weight')) {
               return `${context.dataset.label}: ${value} lbs`
             }
@@ -434,7 +510,10 @@ export default function SmoothedTrendsChart({
       y: {
         position: 'left' as const,
         display:
-          visibility.rawWeight || visibility.weightTrend || visibility.weightGoal,
+          visibility.rawWeight ||
+          visibility.weightTrend ||
+          visibility.weightGoal ||
+          (visibility.photoMarkers && hasPhotoMarkers),
         title: {
           display: !isMobile,
           text: 'Weight (lbs)',
@@ -452,7 +531,8 @@ export default function SmoothedTrendsChart({
         display:
           visibility.rawBodyFat ||
           visibility.bodyFatTrend ||
-          visibility.bodyFatGoal,
+          visibility.bodyFatGoal ||
+          (visibility.aiBodyFatTrend && hasAiBodyFat),
         title: {
           display: !isMobile,
           text: 'Body Fat %',
@@ -643,7 +723,7 @@ export default function SmoothedTrendsChart({
       {showSettings && (
         <div className="mb-6 p-4 bg-zinc-800 rounded-2xl border border-zinc-700">
           <div className="text-sm font-medium mb-3">Toggle Series & Goals</div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
             {CHART_OPTION_COLUMNS.map((column) => (
               <div key={column.title}>
                 <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">

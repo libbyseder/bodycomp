@@ -1,13 +1,14 @@
-import type { Measurement, Profile } from '../types'
+import type { Measurement, Profile, ProgressPhoto } from '../types'
 import TrendsChart from './TrendsChart'
 import SmoothedTrendsChart from './SmoothedTrendsChart'
 
 interface TrendsTabProps {
   measurements: Measurement[]
   profile: Profile | null
+  photos?: ProgressPhoto[]
 }
 
-export default function TrendsTab({ measurements, profile }: TrendsTabProps) {
+export default function TrendsTab({ measurements, profile, photos = [] }: TrendsTabProps) {
   return (
     <div>
       <div className="mb-6">
@@ -20,6 +21,7 @@ export default function TrendsTab({ measurements, profile }: TrendsTabProps) {
       <SmoothedTrendsChart
         measurements={measurements}
         profile={profile}
+        photos={photos}
         className="mb-6 sm:mb-8"
       />
       <TrendsChart measurements={measurements} profile={profile} className="mb-0" />

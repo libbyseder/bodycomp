@@ -11,6 +11,8 @@ export interface GoalPathVisibilitySettings {
   bodyFatGoal: boolean
   ffmiGoal: boolean
   normalizedFfmiGoal: boolean
+  photoMarkers: boolean
+  aiBodyFatTrend: boolean
 }
 
 export const DEFAULT_GOAL_PATH_VISIBILITY: GoalPathVisibilitySettings = {
@@ -26,6 +28,8 @@ export const DEFAULT_GOAL_PATH_VISIBILITY: GoalPathVisibilitySettings = {
   bodyFatGoal: true,
   ffmiGoal: false,
   normalizedFfmiGoal: true,
+  photoMarkers: true,
+  aiBodyFatTrend: false,
 }
 
 const STORAGE_PREFIX = 'recomptrack-goal-path-visibility'

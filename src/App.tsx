@@ -192,6 +192,7 @@ function AuthenticatedDashboard() {
           <HomeTab
             measurements={safeMeasurements}
             profile={safeProfile}
+            photos={safePhotos}
             profileLoading={profileLoading}
             measurementsLoading={measurementsLoading}
             withingsConnected={withingsConnected}
@@ -203,7 +204,11 @@ function AuthenticatedDashboard() {
         )}
 
         {activeTab === 'trends' && !dataLoading && (
-          <TrendsTab measurements={safeMeasurements} profile={safeProfile} />
+          <TrendsTab
+            measurements={safeMeasurements}
+            profile={safeProfile}
+            photos={safePhotos}
+          />
         )}
 
         {activeTab === 'log' && !dataLoading && (

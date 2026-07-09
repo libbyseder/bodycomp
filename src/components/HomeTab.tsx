@@ -1,4 +1,4 @@
-import type { Measurement, Profile } from '../types'
+import type { Measurement, Profile, ProgressPhoto } from '../types'
 import { needsSetup } from '../lib/profileSetup'
 import DashboardWidgets from './DashboardWidgets'
 import SmoothedTrendsChart from './SmoothedTrendsChart'
@@ -9,6 +9,7 @@ import SetupChecklist from './SetupChecklist'
 interface HomeTabProps {
   measurements: Measurement[]
   profile: Profile | null
+  photos?: ProgressPhoto[]
   profileLoading: boolean
   measurementsLoading: boolean
   withingsConnected: boolean
@@ -21,6 +22,7 @@ interface HomeTabProps {
 export default function HomeTab({
   measurements,
   profile,
+  photos = [],
   profileLoading,
   measurementsLoading,
   withingsConnected,
@@ -54,6 +56,7 @@ export default function HomeTab({
       <SmoothedTrendsChart
         measurements={measurements}
         profile={profile}
+        photos={photos}
         title="Goal Path"
         subtitle="Smoothed trends toward your goals"
         className="mb-6"

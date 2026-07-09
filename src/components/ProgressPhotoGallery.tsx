@@ -4,12 +4,13 @@ import toast from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
 import type { Measurement, ProgressPhoto } from '../types'
 import { analyzeProgressPhoto } from '../lib/analyzeProgressPhoto'
+import { usePhotoSignedUrls } from '../hooks/usePhotoSignedUrls'
 import {
-  createSignedPhotoUrl,
   deleteProgressPhoto,
   formatPhotoDate,
   PHOTO_POSE_LABELS,
 } from '../lib/progressPhotos'
+import ProgressPhotoCompare from './ProgressPhotoCompare'
 import ProgressPhotoUpload from './ProgressPhotoUpload'
 import ProgressPhotoAnalysis from './ProgressPhotoAnalysis'
 
@@ -20,10 +21,6 @@ interface ProgressPhotoGalleryProps {
   onRefresh: () => void | Promise<void>
 }
 
-interface PhotoWithUrl extends ProgressPhoto {
-  signedUrl: string | null
-}
-
 export default function ProgressPhotoGallery({
   photos,
   measurements,
@@ -31,10 +28,9 @@ export default function ProgressPhotoGallery({
   onRefresh,
 }: ProgressPhotoGalleryProps) {
   const [uploadDate, setUploadDate] = useState(new Date().toISOString().split('T')[0])
-  const [photosWithUrls, setPhotosWithUrls] = useState<PhotoWithUrl[]>([])
-  const [loadingUrls, setLoadingUrls] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [analyzingId, setAnalyzingId] = useState<string | null>(null)
+  const { getUrl, loading: loadingUrls } = usePhotoSignedUrls(photos)
 
   const measurementDates = useMemo(
     () => [...new Set(measurements.map((m) => m.date))].sort((a, b) => b.localeCompare(a)),
@@ -47,43 +43,15 @@ export default function ProgressPhotoGallery({
     }
   }, [measurementDates, uploadDate])
 
-  useEffect(() => {
-    let cancelled = false
-
-    ;(async () => {
-      if (photos.length === 0) {
-        setPhotosWithUrls([])
-        return
-      }
-
-      setLoadingUrls(true)
-      const withUrls = await Promise.all(
-        photos.map(async (photo) => {
-          const { url } = await createSignedPhotoUrl(supabase, photo.storage_path)
-          return { ...photo, signedUrl: url }
-        })
-      )
-
-      if (!cancelled) {
-        setPhotosWithUrls(withUrls)
-        setLoadingUrls(false)
-      }
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [photos])
-
   const grouped = useMemo(() => {
-    const map = new Map<string, PhotoWithUrl[]>()
-    for (const photo of photosWithUrls) {
+    const map = new Map<string, ProgressPhoto[]>()
+    for (const photo of photos) {
       const existing = map.get(photo.date) ?? []
       existing.push(photo)
       map.set(photo.date, existing)
     }
     return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]))
-  }, [photosWithUrls])
+  }, [photos])
 
   const runAnalysis = async (photoId: string) => {
     setAnalyzingId(photoId)
@@ -118,6 +86,8 @@ export default function ProgressPhotoGallery({
 
   return (
     <div className="space-y-6">
+      <ProgressPhotoCompare photos={photos} measurements={measurements} />
+
       <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
         <h2 className="text-lg font-semibold mb-1">Add progress photo</h2>
         <p className="text-sm text-zinc-400 mb-4">
@@ -176,9 +146,9 @@ export default function ProgressPhotoGallery({
                         className="overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-950"
                       >
                         <div className="relative">
-                          {photo.signedUrl ? (
+                          {getUrl(photo.storage_path) ? (
                             <img
-                              src={photo.signedUrl}
+                              src={getUrl(photo.storage_path)!}
                               alt={`${PHOTO_POSE_LABELS[photo.pose]} progress photo on ${date}`}
                               className="aspect-[3/4] w-full object-cover"
                               loading="lazy"
