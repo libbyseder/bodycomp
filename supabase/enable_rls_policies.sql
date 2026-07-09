@@ -4,6 +4,11 @@
 -- Client (anon key + user JWT): profiles, measurements
 -- Server API routes (service role key): withings_tokens, withings_synced_grpids, sync/delete
 
+-- Required so authenticated users can access tables when RLS is enabled
+GRANT USAGE ON SCHEMA public TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE profiles TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE measurements TO authenticated;
+
 -- =============================================================================
 -- profiles
 -- =============================================================================

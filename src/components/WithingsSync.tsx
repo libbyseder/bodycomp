@@ -8,14 +8,12 @@ interface WithingsSyncProps {
   refetch: () => Promise<void>
   onAuthFailure?: () => void | Promise<void>
   fullWidth?: boolean
-  measurementCount?: number
 }
 
 export default function WithingsSync({
   refetch,
   onAuthFailure,
   fullWidth = false,
-  measurementCount = 0,
 }: WithingsSyncProps) {
   const [isSyncing, setIsSyncing] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
@@ -39,7 +37,6 @@ export default function WithingsSync({
     setShowAdvanced(false)
 
     try {
-      const beforeCount = measurementCount
       const result = await runWithingsSync(force)
 
       if (!result.ok) {
@@ -54,18 +51,28 @@ export default function WithingsSync({
       toast.success(result.message || 'Sync completed!')
       await refetch()
 
-      const { data: refreshed, error: readError } = await supabase
-        .from('measurements')
-        .select('id')
+      if ((result.measurementsSaved ?? 0) > 0) {
+        const { data: { session } } = await supabase.auth.getSession()
+        const { count, error: readError } = await supabase
+          .from('measurements')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', session?.user.id ?? '')
 
-      if (readError) {
-        console.error('Could not verify synced measurements:', readError)
-      } else if ((result.measurementsSaved ?? 0) > 0 && (refreshed?.length ?? 0) <= beforeCount) {
-        toast.error(
-          'Sync saved data, but the app cannot read it. Check Supabase row-level security policies for the measurements table.',
-          { duration: 8000 }
-        )
-      } else if (
+        if (readError) {
+          console.error('Could not verify synced measurements:', readError)
+          toast.error(
+            `Sync saved data, but read failed: ${readError.message}. Re-run supabase/enable_rls_policies.sql in the SQL editor.`,
+            { duration: 10000 }
+          )
+        } else if ((count ?? 0) === 0) {
+          toast.error(
+            'Sync saved data, but the app cannot read any measurements. Re-run supabase/enable_rls_policies.sql in the SQL editor.',
+            { duration: 10000 }
+          )
+        }
+      }
+
+      if (
         !force &&
         result.newReadingsMerged === 0 &&
         (result.skippedAlreadySynced ?? 0) > 0

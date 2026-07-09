@@ -134,7 +134,6 @@ export default function SettingsTab({
                 refetch={refetch}
                 onAuthFailure={refetchWithings}
                 fullWidth
-                measurementCount={measurementCount}
               />
             )}
           </div>
