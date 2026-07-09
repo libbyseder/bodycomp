@@ -1,6 +1,6 @@
 import { getSupabaseAdmin } from '../../server/withingsTokens.js'
 import { createWithingsOAuthState } from '../../server/withingsOAuthState.js'
-import { buildWithingsLoginUrl } from '../../server/withingsOAuthUrl.js'
+import { buildWithingsConnectEntryUrl } from '../../server/withingsOAuthUrl.js'
 
 const supabase = getSupabaseAdmin()
 
@@ -26,7 +26,7 @@ export default async function handler(req, res) {
 
   try {
     const state = createWithingsOAuthState(user.id, isApp)
-    const url = buildWithingsLoginUrl(state)
+    const url = buildWithingsConnectEntryUrl(state)
     return res.status(200).json({ url })
   } catch (error) {
     console.error('Withings auth-start error:', error)

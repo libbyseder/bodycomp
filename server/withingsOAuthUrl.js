@@ -1,4 +1,5 @@
 export const WITHINGS_REDIRECT_URI = 'https://bodycomp-goals.vercel.app/api/withings/callback'
+export const WITHINGS_APP_ORIGIN = 'https://bodycomp-goals.vercel.app'
 
 export function buildWithingsLoginUrl(state) {
   const clientId = process.env.WITHINGS_CLIENT_ID
@@ -18,4 +19,23 @@ export function buildWithingsLoginUrl(state) {
   loginUrl.searchParams.set('b', 'user_select')
 
   return loginUrl.toString()
+}
+
+export function buildWithingsContinueOAuthUrl(state) {
+  const continueUrl = new URL(`${WITHINGS_APP_ORIGIN}/api/withings/continue-oauth`)
+  continueUrl.searchParams.set('state', state)
+  return continueUrl.toString()
+}
+
+/** Clear the browser Withings session, then land on continue-oauth → login. */
+export function buildWithingsLogoutUrl(continueUrl) {
+  const logoutUrl = new URL('https://account.withings.com/oauth2_user/logout')
+  logoutUrl.searchParams.set('redirect_uri', continueUrl)
+  return logoutUrl.toString()
+}
+
+export function buildWithingsConnectEntryUrl(state) {
+  const beginUrl = new URL(`${WITHINGS_APP_ORIGIN}/api/withings/begin-oauth`)
+  beginUrl.searchParams.set('state', state)
+  return beginUrl.toString()
 }
