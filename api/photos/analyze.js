@@ -1,6 +1,6 @@
 import { getSupabaseAdmin } from '../../server/withingsTokens.js'
 import {
-  analyzePhotoWithOpenAI,
+  analyzePhotoWithAiGateway,
   buildPhotoAnalysisPrompt,
   isVisionSupportedMime,
 } from '../../server/photoAnalysis.js'
@@ -89,7 +89,7 @@ export default async function handler(req, res) {
     })
 
     const arrayBuffer = await fileData.arrayBuffer()
-    const analysis = await analyzePhotoWithOpenAI({
+    const analysis = await analyzePhotoWithAiGateway({
       imageBase64: bufferToBase64(arrayBuffer),
       mimeType: photo.mime_type,
       prompt,

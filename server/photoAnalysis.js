@@ -1,4 +1,6 @@
-const ANALYSIS_MODEL = 'gpt-4o-mini'
+const AI_GATEWAY_BASE_URL = 'https://ai-gateway.vercel.sh/v1'
+const GATEWAY_MODEL = 'openai/gpt-4o-mini'
+const ANALYSIS_MODEL_LABEL = 'gpt-4o-mini'
 
 const SUPPORTED_VISION_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
 
@@ -40,7 +42,7 @@ export function normalizeAnalysisPayload(raw) {
         ? raw.muscle_observations.trim().slice(0, 400)
         : null,
     analyzed_at: new Date().toISOString(),
-    model: ANALYSIS_MODEL,
+    model: ANALYSIS_MODEL_LABEL,
     disclaimer:
       'Visual estimate only — not medical advice. Scale or clinical measurements are more accurate.',
   }
@@ -89,24 +91,30 @@ Rules:
 - front/side poses are more reliable than back for body fat`
 }
 
-export async function analyzePhotoWithOpenAI({
+function resolveAiGatewayToken() {
+  return process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN || null
+}
+
+export async function analyzePhotoWithAiGateway({
   imageBase64,
   mimeType,
   prompt,
 }) {
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) {
-    throw new Error('OPENAI_API_KEY is not configured on the server')
+  const token = resolveAiGatewayToken()
+  if (!token) {
+    throw new Error(
+      'AI Gateway is not configured. On Vercel, OIDC is automatic. For local dev, set AI_GATEWAY_API_KEY.'
+    )
   }
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  const response = await fetch(`${AI_GATEWAY_BASE_URL}/chat/completions`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: ANALYSIS_MODEL,
+      model: GATEWAY_MODEL,
       temperature: 0.2,
       max_tokens: 700,
       response_format: { type: 'json_object' },
@@ -130,26 +138,30 @@ export async function analyzePhotoWithOpenAI({
 
   const data = await response.json().catch(() => ({}))
   if (!response.ok) {
-    const message = data?.error?.message || `OpenAI request failed (${response.status})`
+    const message =
+      data?.error?.message || `AI Gateway request failed (${response.status})`
     throw new Error(message)
   }
 
   const content = data?.choices?.[0]?.message?.content
   if (!content) {
-    throw new Error('OpenAI returned an empty analysis')
+    throw new Error('AI Gateway returned an empty analysis')
   }
 
   let parsed
   try {
     parsed = JSON.parse(content)
   } catch {
-    throw new Error('OpenAI returned invalid JSON')
+    throw new Error('AI Gateway returned invalid JSON')
   }
 
   const normalized = normalizeAnalysisPayload(parsed)
   if (!normalized) {
-    throw new Error('OpenAI analysis was missing required fields')
+    throw new Error('AI Gateway analysis was missing required fields')
   }
 
   return normalized
 }
+
+/** @deprecated Use analyzePhotoWithAiGateway */
+export const analyzePhotoWithOpenAI = analyzePhotoWithAiGateway
