@@ -27,7 +27,8 @@ export default function ProgressPhotoGallery({
   loading,
   onRefresh,
 }: ProgressPhotoGalleryProps) {
-  const [uploadDate, setUploadDate] = useState(new Date().toISOString().split('T')[0])
+  const [uploadDate, setUploadDate] = useState('')
+  const [useCustomDate, setUseCustomDate] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [analyzingId, setAnalyzingId] = useState<string | null>(null)
   const { getUrl, loading: loadingUrls } = usePhotoSignedUrls(photos)
@@ -38,10 +39,15 @@ export default function ProgressPhotoGallery({
   )
 
   useEffect(() => {
-    if (measurementDates.length > 0 && !measurementDates.includes(uploadDate)) {
-      setUploadDate(measurementDates[0])
+    if (measurementDates.length === 0) {
+      setUploadDate((current) => current || new Date().toISOString().split('T')[0])
+      return
     }
-  }, [measurementDates, uploadDate])
+
+    setUploadDate((current) =>
+      current && measurementDates.includes(current) ? current : measurementDates[0]
+    )
+  }, [measurementDates])
 
   const grouped = useMemo(() => {
     const map = new Map<string, ProgressPhoto[]>()
@@ -96,12 +102,51 @@ export default function ProgressPhotoGallery({
         </p>
 
         <label className="block text-sm text-zinc-400 mb-2">Link to date</label>
-        <input
-          type="date"
-          value={uploadDate}
-          onChange={(e) => setUploadDate(e.target.value)}
-          className="w-full sm:w-auto mb-4 bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-violet-500"
-        />
+        {measurementDates.length > 0 && !useCustomDate ? (
+          <div className="space-y-2 mb-4">
+            <select
+              value={uploadDate}
+              onChange={(e) => setUploadDate(e.target.value)}
+              className="w-full sm:w-auto bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-violet-500"
+            >
+              {measurementDates.map((date) => (
+                <option key={date} value={date}>
+                  {formatPhotoDate(date)}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => setUseCustomDate(true)}
+              className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+            >
+              Use a different date
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-2 mb-4">
+            <input
+              type="date"
+              value={uploadDate}
+              onChange={(e) => setUploadDate(e.target.value)}
+              className="w-full sm:w-auto bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-violet-500"
+            />
+            {measurementDates.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setUseCustomDate(false)
+                  if (!measurementDates.includes(uploadDate)) {
+                    setUploadDate(measurementDates[0])
+                  }
+                }}
+                className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+              >
+                Choose from logged dates
+              </button>
+            )}
+          </div>
+        )}
 
         <ProgressPhotoUpload
           date={uploadDate}
