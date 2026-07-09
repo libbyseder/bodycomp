@@ -107,6 +107,7 @@ export default function LogTab({
         <ProgressPhotoGallery
           photos={photos}
           measurements={measurements}
+          profile={profile}
           loading={photosLoading}
           onRefresh={onRefreshPhotos}
         />

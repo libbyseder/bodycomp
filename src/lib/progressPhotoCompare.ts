@@ -1,4 +1,9 @@
 import type { Measurement, ProgressPhoto, ProgressPhotoPose } from '../types'
+import {
+  calculateFFMI,
+  calculateLeanMassLbs,
+  calculateNormalizedFFMI,
+} from './calculateFFMI'
 import { parsePhotoAnalysis } from './photoAnalysis'
 
 const POSE_PRIORITY: ProgressPhotoPose[] = ['front', 'side', 'back', 'other']
@@ -13,7 +18,7 @@ export function photosForPose(
 }
 
 export function posesWithMultiplePhotos(photos: ProgressPhoto[]): ProgressPhotoPose[] {
-  return POSE_PRIORITY.filter((pose) => photosForPose(photos, pose).length >= 2)
+  return POSE_PRIORITY.filter((pose) => compareDatesForPose(photos, pose).length >= 2)
 }
 
 export function defaultComparePose(photos: ProgressPhoto[]): ProgressPhotoPose | null {
@@ -85,46 +90,164 @@ function formatDelta(value: number, unit: string, digits = 1): string {
   return `${prefix}${rounded}${unit}`
 }
 
+function formatValue(value: number | null | undefined, formatter: (n: number) => string): string {
+  return value == null ? '—' : formatter(value)
+}
+
+function pushNumericMetric(
+  metrics: CompareMetricDelta[],
+  label: string,
+  beforeValue: number | null | undefined,
+  afterValue: number | null | undefined,
+  formatNumber: (n: number) => string,
+  unit: string,
+  digits = 1
+) {
+  if (beforeValue == null && afterValue == null) return
+
+  const delta =
+    beforeValue != null && afterValue != null
+      ? formatDelta(afterValue - beforeValue, unit, digits)
+      : null
+
+  metrics.push({
+    label,
+    before: formatValue(beforeValue, formatNumber),
+    after: formatValue(afterValue, formatNumber),
+    delta,
+  })
+}
+
 export function compareMetricDeltas(
-  beforeMeasurement: Measurement | undefined,
-  afterMeasurement: Measurement | undefined,
+  beforeMeasurement: Measurement | null | undefined,
+  afterMeasurement: Measurement | null | undefined,
   beforePhoto: ProgressPhoto,
-  afterPhoto: ProgressPhoto
+  afterPhoto: ProgressPhoto,
+  heightInches: number | null | undefined
 ): CompareMetricDelta[] {
   const metrics: CompareMetricDelta[] = []
 
-  if (beforeMeasurement?.weight != null && afterMeasurement?.weight != null) {
-    const delta = afterMeasurement.weight - beforeMeasurement.weight
-    metrics.push({
-      label: 'Weight (scale)',
-      before: `${beforeMeasurement.weight} lbs`,
-      after: `${afterMeasurement.weight} lbs`,
-      delta: formatDelta(delta, ' lbs', 1),
-    })
-  }
+  pushNumericMetric(
+    metrics,
+    'Weight (scale)',
+    beforeMeasurement?.weight,
+    afterMeasurement?.weight,
+    (value) => `${value} lbs`,
+    ' lbs',
+    1
+  )
 
-  if (beforeMeasurement?.body_fat != null && afterMeasurement?.body_fat != null) {
-    const delta = afterMeasurement.body_fat - beforeMeasurement.body_fat
-    metrics.push({
-      label: 'Body fat (scale)',
-      before: `${beforeMeasurement.body_fat}%`,
-      after: `${afterMeasurement.body_fat}%`,
-      delta: formatDelta(delta, '%', 1),
-    })
+  pushNumericMetric(
+    metrics,
+    'Body fat (scale)',
+    beforeMeasurement?.body_fat,
+    afterMeasurement?.body_fat,
+    (value) => `${value}%`,
+    '%',
+    1
+  )
+
+  const beforeLean = beforeMeasurement
+    ? calculateLeanMassLbs(beforeMeasurement.weight, beforeMeasurement.body_fat)
+    : null
+  const afterLean = afterMeasurement
+    ? calculateLeanMassLbs(afterMeasurement.weight, afterMeasurement.body_fat)
+    : null
+
+  pushNumericMetric(
+    metrics,
+    'Lean mass (est.)',
+    beforeLean,
+    afterLean,
+    (value) => `${value} lbs`,
+    ' lbs',
+    1
+  )
+
+  if (heightInches != null && heightInches > 0) {
+    const beforeFfmi =
+      beforeMeasurement != null
+        ? calculateFFMI(
+            beforeMeasurement.weight,
+            beforeMeasurement.body_fat,
+            heightInches
+          )
+        : null
+    const afterFfmi =
+      afterMeasurement != null
+        ? calculateFFMI(afterMeasurement.weight, afterMeasurement.body_fat, heightInches)
+        : null
+
+    pushNumericMetric(metrics, 'FFMI', beforeFfmi, afterFfmi, (value) => `${value}`, '', 2)
+
+    const beforeNormFfmi =
+      beforeMeasurement != null
+        ? calculateNormalizedFFMI(
+            beforeMeasurement.weight,
+            beforeMeasurement.body_fat,
+            heightInches
+          )
+        : null
+    const afterNormFfmi =
+      afterMeasurement != null
+        ? calculateNormalizedFFMI(
+            afterMeasurement.weight,
+            afterMeasurement.body_fat,
+            heightInches
+          )
+        : null
+
+    pushNumericMetric(
+      metrics,
+      'Norm. FFMI',
+      beforeNormFfmi,
+      afterNormFfmi,
+      (value) => `${value}`,
+      '',
+      2
+    )
   }
 
   const beforeAi = parsePhotoAnalysis(beforePhoto.analysis_json)
   const afterAi = parsePhotoAnalysis(afterPhoto.analysis_json)
 
-  if (beforeAi?.body_fat_percent != null && afterAi?.body_fat_percent != null) {
-    const delta = afterAi.body_fat_percent - beforeAi.body_fat_percent
-    metrics.push({
-      label: 'Body fat (AI est.)',
-      before: `${beforeAi.body_fat_percent.toFixed(1)}%`,
-      after: `${afterAi.body_fat_percent.toFixed(1)}%`,
-      delta: formatDelta(delta, '%', 1),
-    })
-  }
+  pushNumericMetric(
+    metrics,
+    'Body fat (AI est.)',
+    beforeAi?.body_fat_percent,
+    afterAi?.body_fat_percent,
+    (value) => `${value.toFixed(1)}%`,
+    '%',
+    1
+  )
 
   return metrics
+}
+
+export function formatMeasurementSummary(
+  measurement: Measurement | null | undefined,
+  heightInches: number | null | undefined
+): string | null {
+  if (!measurement) return null
+
+  const parts = [`${measurement.weight} lbs`]
+  if (measurement.body_fat != null) {
+    parts.push(`${measurement.body_fat}% BF`)
+  }
+
+  if (heightInches != null && heightInches > 0 && measurement.body_fat != null) {
+    const ffmi = calculateFFMI(measurement.weight, measurement.body_fat, heightInches)
+    const normFfmi = calculateNormalizedFFMI(
+      measurement.weight,
+      measurement.body_fat,
+      heightInches
+    )
+    if (ffmi != null) parts.push(`FFMI ${ffmi}`)
+    if (normFfmi != null) parts.push(`Norm ${normFfmi}`)
+  }
+
+  const lean = calculateLeanMassLbs(measurement.weight, measurement.body_fat)
+  if (lean != null) parts.push(`Lean ${lean} lbs`)
+
+  return parts.join(' · ')
 }

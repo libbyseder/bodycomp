@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ArrowRight } from 'lucide-react'
-import type { Measurement, ProgressPhoto, ProgressPhotoPose } from '../types'
+import type { Measurement, Profile, ProgressPhoto, ProgressPhotoPose } from '../types'
+import { measurementOnDate } from '../lib/goalWindow'
 import { usePhotoSignedUrls } from '../hooks/usePhotoSignedUrls'
 import {
   compareDatesForPose,
@@ -8,6 +9,7 @@ import {
   daysBetweenDates,
   defaultCompareDates,
   defaultComparePose,
+  formatMeasurementSummary,
   posesWithMultiplePhotos,
   resolveComparePair,
 } from '../lib/progressPhotoCompare'
@@ -17,29 +19,27 @@ import ProgressPhotoAnalysis from './ProgressPhotoAnalysis'
 interface ProgressPhotoCompareProps {
   photos: ProgressPhoto[]
   measurements: Measurement[]
+  profile: Profile | null
 }
 
 export default function ProgressPhotoCompare({
   photos,
   measurements,
+  profile,
 }: ProgressPhotoCompareProps) {
   const availablePoses = useMemo(() => posesWithMultiplePhotos(photos), [photos])
   const initialPose = useMemo(() => defaultComparePose(photos), [photos])
+  const heightInches = profile?.height_inches ?? null
 
   const [pose, setPose] = useState<ProgressPhotoPose | null>(initialPose)
   const [beforeDate, setBeforeDate] = useState<string | null>(null)
   const [afterDate, setAfterDate] = useState<string | null>(null)
-  const previousPoseRef = useRef<ProgressPhotoPose | null>(null)
 
   useEffect(() => {
     if (!initialPose) {
       setPose(null)
-      setBeforeDate(null)
-      setAfterDate(null)
-      previousPoseRef.current = null
       return
     }
-
     if (!pose || !availablePoses.includes(pose)) {
       setPose(initialPose)
     }
@@ -58,28 +58,14 @@ export default function ProgressPhotoCompare({
   )
 
   useEffect(() => {
-    if (!activePose || !defaultDates) {
+    if (!defaultDates) {
       setBeforeDate(null)
       setAfterDate(null)
       return
     }
-
-    const poseChanged = previousPoseRef.current !== activePose
-    previousPoseRef.current = activePose
-
-    if (poseChanged) {
-      setBeforeDate(defaultDates.beforeDate)
-      setAfterDate(defaultDates.afterDate)
-      return
-    }
-
-    setBeforeDate((current) =>
-      current && datesForPose.includes(current) ? current : defaultDates.beforeDate
-    )
-    setAfterDate((current) =>
-      current && datesForPose.includes(current) ? current : defaultDates.afterDate
-    )
-  }, [activePose, defaultDates, datesForPose])
+    setBeforeDate(defaultDates.beforeDate)
+    setAfterDate(defaultDates.afterDate)
+  }, [activePose, defaultDates?.beforeDate, defaultDates?.afterDate])
 
   const resolvedBeforeDate =
     beforeDate && datesForPose.includes(beforeDate)
@@ -96,36 +82,38 @@ export default function ProgressPhotoCompare({
     return resolveComparePair(photos, activePose, resolvedBeforeDate, resolvedAfterDate)
   }, [photos, activePose, resolvedBeforeDate, resolvedAfterDate])
 
-  const { getUrl, isLoading } = usePhotoSignedUrls(pair ? [pair.before, pair.after] : [])
+  const { getUrl, isLoading } = usePhotoSignedUrls(photos)
 
   if (!initialPose || !activePose || !defaultDates || !resolvedBeforeDate || !resolvedAfterDate) {
     return (
       <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
         <h2 className="text-lg font-semibold mb-1">Before & after</h2>
         <p className="text-sm text-zinc-400">
-          Upload at least two photos in the same pose (e.g. front) on different dates to
-          compare your visual progress.
+          Upload the same pose (e.g. front) on at least two different dates to compare your
+          visual progress.
         </p>
       </div>
     )
   }
 
-  const beforeMeasurement = measurements.find((m) => m.date === resolvedBeforeDate)
-  const afterMeasurement = measurements.find((m) => m.date === resolvedAfterDate)
+  const beforeMeasurement = measurementOnDate(measurements, resolvedBeforeDate)
+  const afterMeasurement = measurementOnDate(measurements, resolvedAfterDate)
+
   const metricDeltas =
     pair != null
       ? compareMetricDeltas(
           beforeMeasurement,
           afterMeasurement,
           pair.before,
-          pair.after
+          pair.after,
+          heightInches
         )
       : []
 
   const spanDays = daysBetweenDates(resolvedBeforeDate, resolvedAfterDate)
 
-  const beforeOptions = datesForPose.filter((date) => date !== resolvedAfterDate)
-  const afterOptions = datesForPose.filter((date) => date !== resolvedBeforeDate)
+  const beforeOptions = datesForPose.filter((date) => date < resolvedAfterDate)
+  const afterOptions = datesForPose.filter((date) => date > resolvedBeforeDate)
 
   return (
     <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
@@ -188,10 +176,14 @@ export default function ProgressPhotoCompare({
         </label>
       </div>
 
-      {pair && (
+      {!pair ? (
+        <p className="text-sm text-amber-400 mb-4">
+          Choose a before date earlier than the after date to compare photos.
+        </p>
+      ) : (
         <>
-          {metricDeltas.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+          {metricDeltas.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
               {metricDeltas.map((metric) => (
                 <div
                   key={metric.label}
@@ -211,6 +203,10 @@ export default function ProgressPhotoCompare({
                 </div>
               ))}
             </div>
+          ) : (
+            <p className="text-sm text-zinc-500 mb-5">
+              No scale measurements on these dates yet — photos still compare below.
+            </p>
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -219,27 +215,25 @@ export default function ProgressPhotoCompare({
               const signedUrl = getUrl(photo.storage_path)
               const photoLoading = isLoading(photo.storage_path)
               const caption = index === 0 ? 'Before' : 'After'
+              const measurementSummary = formatMeasurementSummary(measurement, heightInches)
 
               return (
                 <article
                   key={photo.id}
                   className="overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-950"
                 >
-                  <div className="px-3 py-2 border-b border-zinc-800 flex items-center justify-between">
+                  <div className="px-3 py-2 border-b border-zinc-800">
                     <p className="text-sm font-medium text-white">
                       {caption} · {formatPhotoDate(photo.date)}
                     </p>
-                    {measurement && (
-                      <p className="text-xs text-zinc-500">
-                        {measurement.weight} lbs
-                        {measurement.body_fat != null
-                          ? ` · ${measurement.body_fat}% BF`
-                          : ''}
-                      </p>
+                    {measurementSummary ? (
+                      <p className="text-xs text-zinc-500 mt-0.5">{measurementSummary}</p>
+                    ) : (
+                      <p className="text-xs text-zinc-600 mt-0.5">No scale log this day</p>
                     )}
                   </div>
                   <div className="relative">
-                    {photoLoading && !signedUrl ? (
+                    {photoLoading ? (
                       <div className="aspect-[3/4] flex items-center justify-center text-xs text-zinc-500">
                         Loading…
                       </div>
@@ -258,7 +252,7 @@ export default function ProgressPhotoCompare({
                   <div className="p-3">
                     <ProgressPhotoAnalysis
                       photo={photo}
-                      measurement={measurement}
+                      measurement={measurement ?? undefined}
                       compact
                     />
                   </div>
