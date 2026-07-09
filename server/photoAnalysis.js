@@ -91,16 +91,22 @@ Rules:
 - front/side poses are more reliable than back for body fat`
 }
 
-function resolveAiGatewayToken() {
-  return process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN || null
+function resolveAiGatewayToken(oidcToken) {
+  return (
+    oidcToken ||
+    process.env.AI_GATEWAY_API_KEY ||
+    process.env.VERCEL_OIDC_TOKEN ||
+    null
+  )
 }
 
 export async function analyzePhotoWithAiGateway({
   imageBase64,
   mimeType,
   prompt,
+  oidcToken,
 }) {
-  const token = resolveAiGatewayToken()
+  const token = resolveAiGatewayToken(oidcToken)
   if (!token) {
     throw new Error(
       'AI Gateway is not configured. On Vercel, OIDC is automatic. For local dev, set AI_GATEWAY_API_KEY.'

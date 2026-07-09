@@ -89,10 +89,12 @@ export default async function handler(req, res) {
     })
 
     const arrayBuffer = await fileData.arrayBuffer()
+    const oidcToken = req.headers['x-vercel-oidc-token']
     const analysis = await analyzePhotoWithAiGateway({
       imageBase64: bufferToBase64(arrayBuffer),
       mimeType: photo.mime_type,
       prompt,
+      oidcToken: typeof oidcToken === 'string' ? oidcToken : undefined,
     })
 
     const { error: updateError } = await supabase
