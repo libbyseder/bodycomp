@@ -12,6 +12,19 @@ export interface Measurement {
   created_at: string
 }
 
+export type ProgressPhotoPose = 'front' | 'side' | 'back' | 'other'
+
+export interface ProgressPhoto {
+  id: string
+  user_id: string
+  date: string
+  pose: ProgressPhotoPose
+  storage_path: string
+  mime_type: string
+  file_size_bytes: number | null
+  created_at: string
+}
+
 export interface Profile {
   id?: string
   name?: string | null

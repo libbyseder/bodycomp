@@ -3,14 +3,21 @@ import { supabase } from '../lib/supabase'
 import { upsertDailyMeasurement } from '../lib/upsertDailyMeasurement'
 import { X } from 'lucide-react'
 import toast from 'react-hot-toast'
+import ProgressPhotoUpload from './ProgressPhotoUpload'
 
 interface QuickLogModalProps {
   isOpen: boolean
   onClose: () => void
   refetch?: () => void | Promise<void>
+  refetchPhotos?: () => void | Promise<void>
 }
 
-export default function QuickLogModal({ isOpen, onClose, refetch }: QuickLogModalProps) {
+export default function QuickLogModal({
+  isOpen,
+  onClose,
+  refetch,
+  refetchPhotos,
+}: QuickLogModalProps) {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [weight, setWeight] = useState('')
   const [bodyFat, setBodyFat] = useState('')
@@ -124,6 +131,15 @@ export default function QuickLogModal({ isOpen, onClose, refetch }: QuickLogModa
               onChange={(e) => setBodyFat(e.target.value)}
               placeholder="e.g. 22.5"
               className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
+            />
+          </div>
+
+          <div className="pt-2 border-t border-zinc-800">
+            <p className="text-sm font-medium text-zinc-300 mb-3">Progress photo (optional)</p>
+            <ProgressPhotoUpload
+              date={date}
+              compact
+              onUploaded={refetchPhotos}
             />
           </div>
 

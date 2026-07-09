@@ -1,0 +1,192 @@
+import { useEffect, useMemo, useState } from 'react'
+import { Trash2 } from 'lucide-react'
+import toast from 'react-hot-toast'
+import { supabase } from '../lib/supabase'
+import type { Measurement, ProgressPhoto } from '../types'
+import {
+  createSignedPhotoUrl,
+  deleteProgressPhoto,
+  formatPhotoDate,
+  PHOTO_POSE_LABELS,
+} from '../lib/progressPhotos'
+import ProgressPhotoUpload from './ProgressPhotoUpload'
+
+interface ProgressPhotoGalleryProps {
+  photos: ProgressPhoto[]
+  measurements: Measurement[]
+  loading: boolean
+  onRefresh: () => void | Promise<void>
+}
+
+interface PhotoWithUrl extends ProgressPhoto {
+  signedUrl: string | null
+}
+
+export default function ProgressPhotoGallery({
+  photos,
+  measurements,
+  loading,
+  onRefresh,
+}: ProgressPhotoGalleryProps) {
+  const [uploadDate, setUploadDate] = useState(new Date().toISOString().split('T')[0])
+  const [photosWithUrls, setPhotosWithUrls] = useState<PhotoWithUrl[]>([])
+  const [loadingUrls, setLoadingUrls] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const measurementDates = useMemo(
+    () => [...new Set(measurements.map((m) => m.date))].sort((a, b) => b.localeCompare(a)),
+    [measurements]
+  )
+
+  useEffect(() => {
+    if (measurementDates.length > 0 && !measurementDates.includes(uploadDate)) {
+      setUploadDate(measurementDates[0])
+    }
+  }, [measurementDates, uploadDate])
+
+  useEffect(() => {
+    let cancelled = false
+
+    ;(async () => {
+      if (photos.length === 0) {
+        setPhotosWithUrls([])
+        return
+      }
+
+      setLoadingUrls(true)
+      const withUrls = await Promise.all(
+        photos.map(async (photo) => {
+          const { url } = await createSignedPhotoUrl(supabase, photo.storage_path)
+          return { ...photo, signedUrl: url }
+        })
+      )
+
+      if (!cancelled) {
+        setPhotosWithUrls(withUrls)
+        setLoadingUrls(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [photos])
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, PhotoWithUrl[]>()
+    for (const photo of photosWithUrls) {
+      const existing = map.get(photo.date) ?? []
+      existing.push(photo)
+      map.set(photo.date, existing)
+    }
+    return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]))
+  }, [photosWithUrls])
+
+  const handleDelete = async (photo: ProgressPhoto) => {
+    if (!confirm('Delete this progress photo?')) return
+
+    setDeletingId(photo.id)
+    const { error } = await deleteProgressPhoto(supabase, photo)
+    setDeletingId(null)
+
+    if (error) {
+      toast.error(error)
+      return
+    }
+
+    toast.success('Photo deleted')
+    await onRefresh()
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
+        <h2 className="text-lg font-semibold mb-1">Add progress photo</h2>
+        <p className="text-sm text-zinc-400 mb-4">
+          Optional check-in photos linked to a measurement date. AI analysis comes in a later update.
+        </p>
+
+        <label className="block text-sm text-zinc-400 mb-2">Link to date</label>
+        <input
+          type="date"
+          value={uploadDate}
+          onChange={(e) => setUploadDate(e.target.value)}
+          className="w-full sm:w-auto mb-4 bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-violet-500"
+        />
+
+        <ProgressPhotoUpload date={uploadDate} onUploaded={onRefresh} />
+      </div>
+
+      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">Photo gallery</h2>
+          <span className="text-sm text-zinc-400">
+            {photos.length} {photos.length === 1 ? 'photo' : 'photos'}
+          </span>
+        </div>
+
+        {loading || loadingUrls ? (
+          <p className="text-sm text-zinc-400">Loading photos…</p>
+        ) : grouped.length === 0 ? (
+          <p className="text-sm text-zinc-400">
+            No progress photos yet. Add a front, side, or back photo to start a visual timeline.
+          </p>
+        ) : (
+          <div className="space-y-6">
+            {grouped.map(([date, dayPhotos]) => {
+              const measurement = measurements.find((m) => m.date === date)
+              return (
+                <section key={date}>
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-3">
+                    <h3 className="font-medium text-white">{formatPhotoDate(date)}</h3>
+                    {measurement && (
+                      <span className="text-xs text-zinc-500">
+                        {measurement.weight} lbs
+                        {measurement.body_fat != null ? ` · ${measurement.body_fat}% BF` : ''}
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {dayPhotos.map((photo) => (
+                      <article
+                        key={photo.id}
+                        className="group relative overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-950"
+                      >
+                        {photo.signedUrl ? (
+                          <img
+                            src={photo.signedUrl}
+                            alt={`${PHOTO_POSE_LABELS[photo.pose]} progress photo on ${date}`}
+                            className="aspect-[3/4] w-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="aspect-[3/4] flex items-center justify-center text-xs text-zinc-500">
+                            Preview unavailable
+                          </div>
+                        )}
+                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3">
+                          <p className="text-xs font-medium text-white">
+                            {PHOTO_POSE_LABELS[photo.pose]}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void handleDelete(photo)}
+                          disabled={deletingId === photo.id}
+                          className="absolute top-2 right-2 p-2 rounded-xl bg-black/60 text-zinc-200 hover:bg-red-600/90 hover:text-white opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity disabled:opacity-50"
+                          aria-label="Delete photo"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

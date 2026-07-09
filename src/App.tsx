@@ -19,6 +19,7 @@ import TrendsTab from './components/TrendsTab'
 import LogTab from './components/LogTab'
 import SettingsTab from './components/SettingsTab'
 import { useMeasurements } from './hooks/useMeasurements'
+import { useProgressPhotos } from './hooks/useProgressPhotos'
 import { useProfile } from './hooks/useProfile'
 import { useWithingsConnection } from './hooks/useWithingsConnection'
 import type { TabId } from './types/navigation'
@@ -28,6 +29,7 @@ import toast, { Toaster } from 'react-hot-toast'
 function AuthenticatedDashboard() {
   const { user, signOut } = useAuth()
   const { measurements, loading: measurementsLoading, deleteMeasurement, refetch } = useMeasurements()
+  const { photos, loading: photosLoading, refetch: refetchPhotos } = useProgressPhotos()
   const { profile, loading: profileLoading, refetchProfile } = useProfile()
   const { connected: withingsConnected, loading: withingsLoading, refetch: refetchWithings } = useWithingsConnection()
 
@@ -38,6 +40,10 @@ function AuthenticatedDashboard() {
   const safeMeasurements = useMemo(
     () => measurements.filter((m) => m.user_id === user?.id),
     [measurements, user?.id]
+  )
+  const safePhotos = useMemo(
+    () => photos.filter((p) => p.user_id === user?.id),
+    [photos, user?.id]
   )
 
   const [activeTab, setActiveTab] = useState<TabId>('home')
@@ -204,8 +210,11 @@ function AuthenticatedDashboard() {
           <LogTab
             measurements={safeMeasurements}
             profile={safeProfile}
+            photos={safePhotos}
+            photosLoading={photosLoading}
             onDelete={deleteMeasurement}
             onRefresh={refetch}
+            onRefreshPhotos={refetchPhotos}
             onQuickLog={() => setShowQuickLog(true)}
           />
         )}
@@ -233,6 +242,7 @@ function AuthenticatedDashboard() {
         isOpen={showQuickLog}
         onClose={() => setShowQuickLog(false)}
         refetch={refetch}
+        refetchPhotos={refetchPhotos}
       />
       <ProfileModal
         isOpen={showProfile}

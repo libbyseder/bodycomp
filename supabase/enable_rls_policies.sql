@@ -8,6 +8,7 @@
 GRANT USAGE ON SCHEMA public TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE profiles TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE measurements TO authenticated;
+GRANT SELECT, INSERT, DELETE ON TABLE progress_photos TO authenticated;
 
 -- =============================================================================
 -- profiles
@@ -60,6 +61,29 @@ CREATE POLICY "Users can update own measurements"
 DROP POLICY IF EXISTS "Users can delete own measurements" ON measurements;
 CREATE POLICY "Users can delete own measurements"
   ON measurements FOR DELETE
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+-- =============================================================================
+-- progress_photos (run add_progress_photos.sql first to create table + bucket)
+-- =============================================================================
+ALTER TABLE progress_photos ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view own progress photos" ON progress_photos;
+CREATE POLICY "Users can view own progress photos"
+  ON progress_photos FOR SELECT
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert own progress photos" ON progress_photos;
+CREATE POLICY "Users can insert own progress photos"
+  ON progress_photos FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own progress photos" ON progress_photos;
+CREATE POLICY "Users can delete own progress photos"
+  ON progress_photos FOR DELETE
   TO authenticated
   USING (auth.uid() = user_id);
 
