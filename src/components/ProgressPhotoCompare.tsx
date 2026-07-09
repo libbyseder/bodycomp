@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight } from 'lucide-react'
 import type { Measurement, ProgressPhoto, ProgressPhotoPose } from '../types'
 import { usePhotoSignedUrls } from '../hooks/usePhotoSignedUrls'
@@ -27,14 +27,16 @@ export default function ProgressPhotoCompare({
   const initialPose = useMemo(() => defaultComparePose(photos), [photos])
 
   const [pose, setPose] = useState<ProgressPhotoPose | null>(initialPose)
-  const [beforeDate, setBeforeDate] = useState('')
-  const [afterDate, setAfterDate] = useState('')
+  const [beforeDate, setBeforeDate] = useState<string | null>(null)
+  const [afterDate, setAfterDate] = useState<string | null>(null)
+  const previousPoseRef = useRef<ProgressPhotoPose | null>(null)
 
   useEffect(() => {
     if (!initialPose) {
       setPose(null)
-      setBeforeDate('')
-      setAfterDate('')
+      setBeforeDate(null)
+      setAfterDate(null)
+      previousPoseRef.current = null
       return
     }
 
@@ -44,39 +46,59 @@ export default function ProgressPhotoCompare({
   }, [initialPose, pose, availablePoses])
 
   const activePose = pose && availablePoses.includes(pose) ? pose : initialPose
+
   const datesForPose = useMemo(
     () => (activePose ? compareDatesForPose(photos, activePose) : []),
     [photos, activePose]
   )
 
-  useEffect(() => {
-    if (!activePose) return
+  const defaultDates = useMemo(
+    () => (activePose ? defaultCompareDates(photos, activePose) : null),
+    [photos, activePose]
+  )
 
-    const defaults = defaultCompareDates(photos, activePose)
-    if (!defaults) {
-      setBeforeDate('')
-      setAfterDate('')
+  useEffect(() => {
+    if (!activePose || !defaultDates) {
+      setBeforeDate(null)
+      setAfterDate(null)
+      return
+    }
+
+    const poseChanged = previousPoseRef.current !== activePose
+    previousPoseRef.current = activePose
+
+    if (poseChanged) {
+      setBeforeDate(defaultDates.beforeDate)
+      setAfterDate(defaultDates.afterDate)
       return
     }
 
     setBeforeDate((current) =>
-      datesForPose.includes(current) ? current : defaults.beforeDate
+      current && datesForPose.includes(current) ? current : defaultDates.beforeDate
     )
     setAfterDate((current) =>
-      datesForPose.includes(current) ? current : defaults.afterDate
+      current && datesForPose.includes(current) ? current : defaultDates.afterDate
     )
-  }, [activePose, photos, datesForPose])
+  }, [activePose, defaultDates, datesForPose])
+
+  const resolvedBeforeDate =
+    beforeDate && datesForPose.includes(beforeDate)
+      ? beforeDate
+      : defaultDates?.beforeDate ?? null
+
+  const resolvedAfterDate =
+    afterDate && datesForPose.includes(afterDate)
+      ? afterDate
+      : defaultDates?.afterDate ?? null
 
   const pair = useMemo(() => {
-    if (!activePose || !beforeDate || !afterDate) return null
-    return resolveComparePair(photos, activePose, beforeDate, afterDate)
-  }, [photos, activePose, beforeDate, afterDate])
+    if (!activePose || !resolvedBeforeDate || !resolvedAfterDate) return null
+    return resolveComparePair(photos, activePose, resolvedBeforeDate, resolvedAfterDate)
+  }, [photos, activePose, resolvedBeforeDate, resolvedAfterDate])
 
-  const { getUrl, loading: loadingUrls } = usePhotoSignedUrls(
-    pair ? [pair.before, pair.after] : []
-  )
+  const { getUrl, isLoading } = usePhotoSignedUrls(pair ? [pair.before, pair.after] : [])
 
-  if (!initialPose || !activePose) {
+  if (!initialPose || !activePose || !defaultDates || !resolvedBeforeDate || !resolvedAfterDate) {
     return (
       <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
         <h2 className="text-lg font-semibold mb-1">Before & after</h2>
@@ -88,8 +110,8 @@ export default function ProgressPhotoCompare({
     )
   }
 
-  const beforeMeasurement = measurements.find((m) => m.date === beforeDate)
-  const afterMeasurement = measurements.find((m) => m.date === afterDate)
+  const beforeMeasurement = measurements.find((m) => m.date === resolvedBeforeDate)
+  const afterMeasurement = measurements.find((m) => m.date === resolvedAfterDate)
   const metricDeltas =
     pair != null
       ? compareMetricDeltas(
@@ -100,11 +122,10 @@ export default function ProgressPhotoCompare({
         )
       : []
 
-  const spanDays =
-    beforeDate && afterDate ? daysBetweenDates(beforeDate, afterDate) : null
+  const spanDays = daysBetweenDates(resolvedBeforeDate, resolvedAfterDate)
 
-  const beforeAfterOptions = (exclude: string) =>
-    datesForPose.filter((date) => date !== exclude)
+  const beforeOptions = datesForPose.filter((date) => date !== resolvedAfterDate)
+  const afterOptions = datesForPose.filter((date) => date !== resolvedBeforeDate)
 
   return (
     <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
@@ -115,11 +136,9 @@ export default function ProgressPhotoCompare({
             Compare the same pose across two check-in dates.
           </p>
         </div>
-        {spanDays != null && (
-          <span className="text-xs text-zinc-500 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-1.5">
-            {spanDays} day{spanDays === 1 ? '' : 's'} apart
-          </span>
-        )}
+        <span className="text-xs text-zinc-500 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-1.5">
+          {spanDays} day{spanDays === 1 ? '' : 's'} apart
+        </span>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
@@ -141,11 +160,11 @@ export default function ProgressPhotoCompare({
         <label className="block text-sm">
           <span className="text-zinc-400 mb-1.5 block">Before</span>
           <select
-            value={beforeDate}
+            value={resolvedBeforeDate}
             onChange={(e) => setBeforeDate(e.target.value)}
             className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-violet-500"
           >
-            {beforeAfterOptions(afterDate).map((date) => (
+            {beforeOptions.map((date) => (
               <option key={date} value={date}>
                 {formatPhotoDate(date)}
               </option>
@@ -156,11 +175,11 @@ export default function ProgressPhotoCompare({
         <label className="block text-sm">
           <span className="text-zinc-400 mb-1.5 block">After</span>
           <select
-            value={afterDate}
+            value={resolvedAfterDate}
             onChange={(e) => setAfterDate(e.target.value)}
             className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-violet-500"
           >
-            {beforeAfterOptions(beforeDate).map((date) => (
+            {afterOptions.map((date) => (
               <option key={date} value={date}>
                 {formatPhotoDate(date)}
               </option>
@@ -198,6 +217,7 @@ export default function ProgressPhotoCompare({
             {([pair.before, pair.after] as const).map((photo, index) => {
               const measurement = index === 0 ? beforeMeasurement : afterMeasurement
               const signedUrl = getUrl(photo.storage_path)
+              const photoLoading = isLoading(photo.storage_path)
               const caption = index === 0 ? 'Before' : 'After'
 
               return (
@@ -219,7 +239,7 @@ export default function ProgressPhotoCompare({
                     )}
                   </div>
                   <div className="relative">
-                    {loadingUrls ? (
+                    {photoLoading && !signedUrl ? (
                       <div className="aspect-[3/4] flex items-center justify-center text-xs text-zinc-500">
                         Loading…
                       </div>
