@@ -1,5 +1,6 @@
 import { getSupabaseAdmin, saveWithingsTokensForUser } from '../../server/withingsTokens.js'
 import { verifyWithingsOAuthState } from '../../server/withingsOAuthState.js'
+import { WITHINGS_REDIRECT_URI } from '../../server/withingsOAuthUrl.js'
 
 const supabase = getSupabaseAdmin()
 
@@ -19,7 +20,7 @@ export default async function handler(req, res) {
 
   const clientId = process.env.WITHINGS_CLIENT_ID
   const clientSecret = process.env.WITHINGS_CLIENT_SECRET
-  const redirectUri = 'https://bodycomp-goals.vercel.app/api/withings/callback'
+  const redirectUri = WITHINGS_REDIRECT_URI
 
   try {
     const tokenResponse = await fetch('https://wbsapi.withings.net/v2/oauth2', {
