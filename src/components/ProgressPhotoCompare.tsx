@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Columns2, SlidersHorizontal } from 'lucide-react'
+import BeforeAfterSlider from './BeforeAfterSlider'
 import type { Measurement, Profile, ProgressPhoto, ProgressPhotoPose } from '../types'
 import { measurementOnDate } from '../lib/goalWindow'
 import {
@@ -23,6 +24,8 @@ interface ProgressPhotoCompareProps {
   isPhotoLoading: (storagePath: string) => boolean
 }
 
+type CompareViewMode = 'split' | 'slider'
+
 export default function ProgressPhotoCompare({
   photos,
   measurements,
@@ -38,6 +41,7 @@ export default function ProgressPhotoCompare({
   const [beforeDate, setBeforeDate] = useState<string | null>(null)
   const [afterDate, setAfterDate] = useState<string | null>(null)
   const previousPoseRef = useRef<ProgressPhotoPose | null>(null)
+  const [viewMode, setViewMode] = useState<CompareViewMode>('slider')
 
   useEffect(() => {
     if (!initialPose) {
@@ -104,7 +108,7 @@ export default function ProgressPhotoCompare({
   if (!initialPose || !activePose || !defaultDates || !resolvedBeforeDate || !resolvedAfterDate) {
     return (
       <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
-        <h2 className="text-lg font-semibold mb-1">Before & after</h2>
+        <h2 className="text-lg font-semibold mb-1">Compare</h2>
         <p className="text-sm text-zinc-400">
           Upload the same pose (e.g. front) on at least two different dates to compare your
           visual progress.
@@ -136,14 +140,42 @@ export default function ProgressPhotoCompare({
     <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
         <div>
-          <h2 className="text-lg font-semibold">Before & after</h2>
+          <h2 className="text-lg font-semibold">Compare</h2>
           <p className="text-sm text-zinc-400 mt-1">
-            Compare the same pose across two check-in dates.
+            Drag the slider or view side-by-side — same pose, two dates.
           </p>
         </div>
-        <span className="text-xs text-zinc-500 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-1.5">
-          {spanDays} day{spanDays === 1 ? '' : 's'} apart
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex rounded-xl border border-zinc-700 bg-zinc-800 p-1">
+            <button
+              type="button"
+              onClick={() => setViewMode('slider')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                viewMode === 'slider'
+                  ? 'bg-violet-500 text-white'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <SlidersHorizontal size={14} />
+              Slider
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('split')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                viewMode === 'split'
+                  ? 'bg-violet-500 text-white'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <Columns2 size={14} />
+              Side by side
+            </button>
+          </div>
+          <span className="text-xs text-zinc-500 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-1.5">
+            {spanDays} day{spanDays === 1 ? '' : 's'} apart
+          </span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
@@ -226,57 +258,110 @@ export default function ProgressPhotoCompare({
             </p>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {([pair.before, pair.after] as const).map((photo, index) => {
-              const measurement = index === 0 ? beforeMeasurement : afterMeasurement
-              const signedUrl = getPhotoUrl(photo.storage_path)
-              const photoLoading = isPhotoLoading(photo.storage_path)
-              const caption = index === 0 ? 'Before' : 'After'
-              const measurementSummary = formatMeasurementSummary(measurement, heightInches)
+          {(() => {
+            const beforeUrl = getPhotoUrl(pair.before.storage_path)
+            const afterUrl = getPhotoUrl(pair.after.storage_path)
+            const eitherLoading =
+              isPhotoLoading(pair.before.storage_path) ||
+              isPhotoLoading(pair.after.storage_path)
 
+            if (eitherLoading) {
               return (
-                <article
-                  key={photo.id}
-                  className="overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-950"
-                >
-                  <div className="px-3 py-2 border-b border-zinc-800">
-                    <p className="text-sm font-medium text-white">
-                      {caption} · {formatPhotoDate(photo.date)}
-                    </p>
-                    {measurementSummary ? (
-                      <p className="text-xs text-zinc-500 mt-0.5">{measurementSummary}</p>
-                    ) : (
-                      <p className="text-xs text-zinc-600 mt-0.5">No scale log this day</p>
-                    )}
+                <div className="aspect-[3/4] max-w-lg mx-auto flex items-center justify-center rounded-2xl border border-zinc-700 bg-zinc-950 text-xs text-zinc-500">
+                  Loading comparison…
+                </div>
+              )
+            }
+
+            if (!beforeUrl || !afterUrl) {
+              return (
+                <p className="text-sm text-zinc-500">
+                  Preview unavailable for one or both photos.
+                </p>
+              )
+            }
+
+            if (viewMode === 'slider') {
+              return (
+                <div className="max-w-lg mx-auto space-y-4">
+                  <BeforeAfterSlider
+                    beforeUrl={beforeUrl}
+                    afterUrl={afterUrl}
+                    beforeLabel={`Before · ${formatPhotoDate(pair.before.date)}`}
+                    afterLabel={`After · ${formatPhotoDate(pair.after.date)}`}
+                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {[beforeMeasurement, afterMeasurement].map((measurement, index) => {
+                      const photo = index === 0 ? pair.before : pair.after
+                      const caption = index === 0 ? 'Before' : 'After'
+                      const summary = formatMeasurementSummary(measurement, heightInches)
+                      return (
+                        <div
+                          key={photo.id}
+                          className="rounded-2xl border border-zinc-800 bg-zinc-950 p-3"
+                        >
+                          <p className="text-xs font-medium text-white mb-1">
+                            {caption} · {formatPhotoDate(photo.date)}
+                          </p>
+                          {summary ? (
+                            <p className="text-[11px] text-zinc-500 mb-2">{summary}</p>
+                          ) : null}
+                          <ProgressPhotoAnalysis
+                            photo={photo}
+                            measurement={measurement ?? undefined}
+                            compact
+                          />
+                        </div>
+                      )
+                    })}
                   </div>
-                  <div className="relative">
-                    {photoLoading ? (
-                      <div className="aspect-[3/4] flex items-center justify-center text-xs text-zinc-500">
-                        Loading…
+                </div>
+              )
+            }
+
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {([pair.before, pair.after] as const).map((photo, index) => {
+                  const measurement = index === 0 ? beforeMeasurement : afterMeasurement
+                  const signedUrl = index === 0 ? beforeUrl : afterUrl
+                  const caption = index === 0 ? 'Before' : 'After'
+                  const measurementSummary = formatMeasurementSummary(measurement, heightInches)
+
+                  return (
+                    <article
+                      key={photo.id}
+                      className="overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-950"
+                    >
+                      <div className="px-3 py-2 border-b border-zinc-800">
+                        <p className="text-sm font-medium text-white">
+                          {caption} · {formatPhotoDate(photo.date)}
+                        </p>
+                        {measurementSummary ? (
+                          <p className="text-xs text-zinc-500 mt-0.5">{measurementSummary}</p>
+                        ) : (
+                          <p className="text-xs text-zinc-600 mt-0.5">No scale log this day</p>
+                        )}
                       </div>
-                    ) : signedUrl ? (
                       <img
                         src={signedUrl}
                         alt={`${caption} ${PHOTO_POSE_LABELS[photo.pose]} photo`}
                         className="aspect-[3/4] w-full object-cover"
+                        loading="lazy"
+                        decoding="async"
                       />
-                    ) : (
-                      <div className="aspect-[3/4] flex items-center justify-center text-xs text-zinc-500">
-                        Preview unavailable
+                      <div className="p-3">
+                        <ProgressPhotoAnalysis
+                          photo={photo}
+                          measurement={measurement ?? undefined}
+                          compact
+                        />
                       </div>
-                    )}
-                  </div>
-                  <div className="p-3">
-                    <ProgressPhotoAnalysis
-                      photo={photo}
-                      measurement={measurement ?? undefined}
-                      compact
-                    />
-                  </div>
-                </article>
-              )
-            })}
-          </div>
+                    </article>
+                  )
+                })}
+              </div>
+            )
+          })()}
         </>
       )}
     </div>

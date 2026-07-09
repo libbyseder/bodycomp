@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
-import type { Measurement, Profile, ProgressPhoto } from '../types'
+import type { Measurement, ProgressPhoto } from '../types'
 import { analyzeProgressPhoto } from '../lib/analyzeProgressPhoto'
 import { usePhotoSignedUrls } from '../hooks/usePhotoSignedUrls'
 import {
@@ -10,14 +10,12 @@ import {
   formatPhotoDate,
   PHOTO_POSE_LABELS,
 } from '../lib/progressPhotos'
-import ProgressPhotoCompare from './ProgressPhotoCompare'
 import ProgressPhotoUpload from './ProgressPhotoUpload'
 import ProgressPhotoAnalysis from './ProgressPhotoAnalysis'
 
 interface ProgressPhotoGalleryProps {
   photos: ProgressPhoto[]
   measurements: Measurement[]
-  profile: Profile | null
   loading: boolean
   onRefresh: () => void | Promise<void>
 }
@@ -25,7 +23,6 @@ interface ProgressPhotoGalleryProps {
 export default function ProgressPhotoGallery({
   photos,
   measurements,
-  profile,
   loading,
   onRefresh,
 }: ProgressPhotoGalleryProps) {
@@ -94,14 +91,6 @@ export default function ProgressPhotoGallery({
 
   return (
     <div className="space-y-6">
-      <ProgressPhotoCompare
-        photos={photos}
-        measurements={measurements}
-        profile={profile}
-        getPhotoUrl={getUrl}
-        isPhotoLoading={isLoading}
-      />
-
       <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
         <h2 className="text-lg font-semibold mb-1">Add progress photo</h2>
         <p className="text-sm text-zinc-400 mb-4">

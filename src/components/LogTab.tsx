@@ -2,11 +2,13 @@ import { useMemo, useState } from 'react'
 import { RefreshCw, Plus } from 'lucide-react'
 import type { Measurement, Profile, ProgressPhoto } from '../types'
 import { measurementsForDisplay } from '../lib/goalWindow'
+import { posesWithMultiplePhotos } from '../lib/progressPhotoCompare'
 import MeasurementsTable from './MeasurementsTable'
 import GoalWindowNotice from './GoalWindowNotice'
 import ProgressPhotoGallery from './ProgressPhotoGallery'
+import ProgressPhotoCompareSection from './ProgressPhotoCompareSection'
 
-type LogSection = 'measurements' | 'photos'
+type LogSection = 'measurements' | 'photos' | 'compare'
 
 interface LogTabProps {
   measurements: Measurement[]
@@ -36,6 +38,20 @@ export default function LogTab({
     [measurements, profile]
   )
 
+  const canCompare = useMemo(() => posesWithMultiplePhotos(photos).length > 0, [photos])
+
+  const sectionSubtitle = useMemo(() => {
+    if (section === 'measurements') {
+      return `${displayMeasurements.length} measurement ${displayMeasurements.length === 1 ? 'entry' : 'entries'}`
+    }
+    if (section === 'compare') {
+      return canCompare
+        ? 'Drag the slider or view side-by-side'
+        : 'Add the same pose on two dates to compare'
+    }
+    return `${photos.length} progress ${photos.length === 1 ? 'photo' : 'photos'}`
+  }, [section, displayMeasurements.length, photos.length, canCompare])
+
   const handleRefreshAll = async () => {
     await Promise.all([onRefresh(), onRefreshPhotos()])
   }
@@ -45,11 +61,7 @@ export default function LogTab({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Log</h1>
-          <p className="text-zinc-400 mt-1 text-sm sm:text-base">
-            {section === 'measurements'
-              ? `${displayMeasurements.length} measurement ${displayMeasurements.length === 1 ? 'entry' : 'entries'}`
-              : `${photos.length} progress ${photos.length === 1 ? 'photo' : 'photos'}`}
-          </p>
+          <p className="text-zinc-400 mt-1 text-sm sm:text-base">{sectionSubtitle}</p>
           <GoalWindowNotice profile={profile} measurements={measurements} className="mt-1" />
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
@@ -70,7 +82,7 @@ export default function LogTab({
         </div>
       </div>
 
-      <div className="flex gap-2 mb-6">
+      <div className="flex flex-wrap gap-2 mb-6">
         <button
           type="button"
           onClick={() => setSection('measurements')}
@@ -93,9 +105,20 @@ export default function LogTab({
         >
           Photos
         </button>
+        <button
+          type="button"
+          onClick={() => setSection('compare')}
+          className={`px-4 py-2 rounded-2xl text-sm font-medium transition-colors ${
+            section === 'compare'
+              ? 'bg-fuchsia-500 text-white'
+              : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+          }`}
+        >
+          Compare
+        </button>
       </div>
 
-      {section === 'measurements' ? (
+      {section === 'measurements' && (
         <div className="bg-zinc-900 border border-zinc-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8">
           <MeasurementsTable
             measurements={displayMeasurements}
@@ -103,13 +126,22 @@ export default function LogTab({
             profile={profile}
           />
         </div>
-      ) : (
+      )}
+
+      {section === 'photos' && (
         <ProgressPhotoGallery
           photos={photos}
           measurements={measurements}
-          profile={profile}
           loading={photosLoading}
           onRefresh={onRefreshPhotos}
+        />
+      )}
+
+      {section === 'compare' && (
+        <ProgressPhotoCompareSection
+          photos={photos}
+          measurements={measurements}
+          profile={profile}
         />
       )}
     </div>
