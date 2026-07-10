@@ -14,6 +14,8 @@ interface ComparePhotoImageProps {
   className?: string
   /** When set, overrides storage URL (e.g. AI background-removed blob) */
   displayUrl?: string | null
+  /** Force contain so stage backdrop / cutouts are visible */
+  forceContain?: boolean
 }
 
 export default function ComparePhotoImage({
@@ -24,10 +26,13 @@ export default function ComparePhotoImage({
   opacity = 1,
   className = '',
   displayUrl,
+  forceContain = false,
 }: ComparePhotoImageProps) {
   const adjust = getLayerAdjust(settings, layer)
+  // Soft blur only on the base (after) layer so overlay stays sharp for alignment
   const blur = layer === 'after' ? settings.blurAmount : 0
-  const objectClass = settings.fitContain ? 'object-contain' : 'object-cover'
+  const useContain = forceContain || settings.fitContain || Boolean(displayUrl)
+  const objectClass = useContain ? 'object-contain' : 'object-cover'
   const src = displayUrl || url
 
   return (

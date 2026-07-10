@@ -23,13 +23,38 @@ export interface CompareToolSettings {
   overlayOpacity: number
   blurAmount: number
   background: CompareBackground
+  /**
+   * When true, photos use object-contain so the stage background shows.
+   * Always recommended once cutouts or non-cover backdrops are active.
+   */
   fitContain: boolean
   /** When true, single-finger drag pans the selected layer instead of moving the slider */
   alignMode: boolean
+  /** Lighting / brightness panel open */
+  adjustMode: boolean
+  /** Background picker sheet open */
+  backgroundPickerOpen: boolean
   /** Which photo is being adjusted by pinch/pan and per-image controls */
   activeLayer: CompareAdjustLayer
   beforeAdjust: ImageAdjustSettings
   afterAdjust: ImageAdjustSettings
+}
+
+/** Serializable edits saved per photo pair (no blob URLs). */
+export interface ComparePairEdits {
+  swapped: boolean
+  flipHorizontal: boolean
+  overlayMode: boolean
+  overlayOpacity: number
+  blurAmount: number
+  background: CompareBackground
+  fitContain: boolean
+  beforeAdjust: ImageAdjustSettings
+  afterAdjust: ImageAdjustSettings
+  /** Re-apply AI cutout when this pair is loaded */
+  beforeCutout: boolean
+  afterCutout: boolean
+  savedAt: string
 }
 
 export const DEFAULT_IMAGE_ADJUST: ImageAdjustSettings = {
@@ -46,9 +71,12 @@ export const DEFAULT_COMPARE_TOOLS: CompareToolSettings = {
   overlayMode: false,
   overlayOpacity: 50,
   blurAmount: 0,
+  // Start with contain so stage background is always visible (GainFrame-style)
   background: 'dark',
-  fitContain: false,
+  fitContain: true,
   alignMode: false,
+  adjustMode: false,
+  backgroundPickerOpen: false,
   activeLayer: 'before',
   beforeAdjust: { ...DEFAULT_IMAGE_ADJUST },
   afterAdjust: { ...DEFAULT_IMAGE_ADJUST },
@@ -106,6 +134,35 @@ export function isDefaultImageAdjust(adjust: ImageAdjustSettings): boolean {
   )
 }
 
+export function isEditingTools(settings: CompareToolSettings): boolean {
+  return settings.alignMode || settings.adjustMode || settings.backgroundPickerOpen
+}
+
+/** Exit edit panels but keep applied transforms / lighting / backdrop. */
+export function doneEditingPatch(): Partial<CompareToolSettings> {
+  return {
+    alignMode: false,
+    adjustMode: false,
+    backgroundPickerOpen: false,
+  }
+}
+
+/** Full visual reset of tool settings (keeps photo pair; clears cutouts separately). */
+export function resetAllToolsPatch(): CompareToolSettings {
+  return {
+    ...DEFAULT_COMPARE_TOOLS,
+    beforeAdjust: { ...DEFAULT_IMAGE_ADJUST },
+    afterAdjust: { ...DEFAULT_IMAGE_ADJUST },
+  }
+}
+
+export function resetLayerAdjustPatch(
+  settings: CompareToolSettings,
+  layer: CompareAdjustLayer
+): Partial<CompareToolSettings> {
+  return patchLayerAdjust(settings, layer, { ...DEFAULT_IMAGE_ADJUST })
+}
+
 export function compareBackgroundStyle(background: CompareBackground): CSSProperties {
   switch (background) {
     case 'black':
@@ -135,6 +192,15 @@ export const COMPARE_BACKGROUND_LABELS: Record<CompareBackground, string> = {
   checkered: 'Grid',
 }
 
+export const COMPARE_BACKGROUND_SWATCHES: Record<CompareBackground, string> = {
+  dark: '#09090b',
+  black: '#000000',
+  white: '#ffffff',
+  light: '#e4e4e7',
+  checkered:
+    'linear-gradient(45deg, #3f3f46 25%, #27272a 25%, #27272a 50%, #3f3f46 50%, #3f3f46 75%, #27272a 75%)',
+}
+
 export const COMPARE_BACKGROUND_ORDER: CompareBackground[] = [
   'dark',
   'black',
@@ -160,4 +226,84 @@ export function clampBrightness(value: number): number {
 
 export function clampContrast(value: number): number {
   return Math.min(MAX_CONTRAST, Math.max(MIN_CONTRAST, value))
+}
+
+export function pairEditsStorageKey(beforePhotoId: string, afterPhotoId: string): string {
+  return `bodytrend.compareEdits.v1.${beforePhotoId}.${afterPhotoId}`
+}
+
+export function toPairEdits(
+  settings: CompareToolSettings,
+  beforeCutout: boolean,
+  afterCutout: boolean
+): ComparePairEdits {
+  return {
+    swapped: settings.swapped,
+    flipHorizontal: settings.flipHorizontal,
+    overlayMode: settings.overlayMode,
+    overlayOpacity: settings.overlayOpacity,
+    blurAmount: settings.blurAmount,
+    background: settings.background,
+    fitContain: settings.fitContain,
+    beforeAdjust: { ...settings.beforeAdjust },
+    afterAdjust: { ...settings.afterAdjust },
+    beforeCutout,
+    afterCutout,
+    savedAt: new Date().toISOString(),
+  }
+}
+
+export function applyPairEdits(edits: ComparePairEdits): CompareToolSettings {
+  return {
+    ...DEFAULT_COMPARE_TOOLS,
+    swapped: edits.swapped,
+    flipHorizontal: edits.flipHorizontal,
+    overlayMode: edits.overlayMode,
+    overlayOpacity: edits.overlayOpacity,
+    blurAmount: edits.blurAmount,
+    background: edits.background,
+    fitContain: edits.fitContain,
+    beforeAdjust: { ...DEFAULT_IMAGE_ADJUST, ...edits.beforeAdjust },
+    afterAdjust: { ...DEFAULT_IMAGE_ADJUST, ...edits.afterAdjust },
+    // Always leave edit panels closed when loading a saved pair
+    alignMode: false,
+    adjustMode: false,
+    backgroundPickerOpen: false,
+  }
+}
+
+export function loadPairEdits(
+  beforePhotoId: string,
+  afterPhotoId: string
+): ComparePairEdits | null {
+  try {
+    const raw = localStorage.getItem(pairEditsStorageKey(beforePhotoId, afterPhotoId))
+    if (!raw) return null
+    return JSON.parse(raw) as ComparePairEdits
+  } catch {
+    return null
+  }
+}
+
+export function savePairEdits(
+  beforePhotoId: string,
+  afterPhotoId: string,
+  edits: ComparePairEdits
+): void {
+  try {
+    localStorage.setItem(
+      pairEditsStorageKey(beforePhotoId, afterPhotoId),
+      JSON.stringify(edits)
+    )
+  } catch (err) {
+    console.warn('Failed to save compare edits', err)
+  }
+}
+
+export function clearPairEdits(beforePhotoId: string, afterPhotoId: string): void {
+  try {
+    localStorage.removeItem(pairEditsStorageKey(beforePhotoId, afterPhotoId))
+  } catch {
+    /* ignore */
+  }
 }
