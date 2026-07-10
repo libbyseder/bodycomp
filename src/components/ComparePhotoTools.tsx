@@ -4,7 +4,6 @@ import {
   Check,
   FlipHorizontal2,
   Focus,
-  Move,
   Palette,
   RotateCcw,
   Sparkles,
@@ -140,9 +139,8 @@ export default function ComparePhotoTools({
     onChange(patchLayerAdjust(settings, settings.activeLayer, patch))
   }
 
-  const openOnly = (mode: 'align' | 'adjust' | 'background') => {
+  const openOnly = (mode: 'adjust' | 'background') => {
     onChange({
-      alignMode: mode === 'align' ? !settings.alignMode : false,
       adjustMode: mode === 'adjust' ? !settings.adjustMode : false,
       backgroundPickerOpen:
         mode === 'background' ? !settings.backgroundPickerOpen : false,
@@ -150,7 +148,6 @@ export default function ComparePhotoTools({
   }
 
   const selectBackground = (background: CompareBackground) => {
-    // Always fit contain so the chosen backdrop is visible around the subject
     onChange({
       background,
       fitContain: true,
@@ -197,14 +194,6 @@ export default function ComparePhotoTools({
           onClick={() => onChange({ overlayMode: !settings.overlayMode })}
         >
           <Blend size={18} />
-        </ToolButton>
-
-        <ToolButton
-          label="Align"
-          active={settings.alignMode}
-          onClick={() => openOnly('align')}
-        >
-          <Move size={18} />
         </ToolButton>
 
         <ToolButton
@@ -278,8 +267,8 @@ export default function ComparePhotoTools({
           ? ` · Cutout${beforeBgRemoved && afterBgRemoved ? 's' : ''} on`
           : ''}
         {hasSavedEdits ? ' · Saved for this pair' : ''}
-        {settings.alignMode
-          ? ` · Align ${settings.activeLayer}: pinch / drag / scroll`
+        {settings.adjustMode
+          ? ` · Adjust ${settings.activeLayer}: pinch zoom, drag to pan`
           : ''}
       </p>
 
@@ -335,15 +324,14 @@ export default function ComparePhotoTools({
         </div>
       )}
 
-      {(settings.alignMode || settings.adjustMode) && (
+      {settings.adjustMode && (
         <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="text-sm text-zinc-200 font-medium">
-                {settings.alignMode ? 'Align photos' : 'Lighting'}
-              </p>
+              <p className="text-sm text-zinc-200 font-medium">Adjust photo</p>
               <p className="text-[11px] text-zinc-500 mt-0.5">
-                Edits apply to the selected photo. Tap Done when it looks right.
+                Zoom, pan, and lighting for the selected photo. Tap Done when it
+                looks right.
               </p>
             </div>
             <button
@@ -363,195 +351,162 @@ export default function ComparePhotoTools({
             afterCutout={afterBgRemoved}
           />
 
-          {settings.alignMode && (
-            <div className="space-y-3">
-              <label className="block text-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-zinc-300">Zoom</span>
-                  <span className="text-xs text-zinc-500">
-                    {Math.round(activeAdjust.scale * 100)}%
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={MIN_COMPARE_SCALE}
-                  max={MAX_COMPARE_SCALE}
-                  step={0.01}
-                  value={activeAdjust.scale}
-                  onChange={(e) =>
-                    updateActiveAdjust({ scale: Number(e.target.value) })
-                  }
-                  className="w-full accent-violet-500"
-                />
-              </label>
-              <p className="text-[11px] text-zinc-500">
+          <div className="space-y-4">
+            <label className="block text-sm">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-zinc-300">Zoom</span>
+                <span className="text-xs text-zinc-500">
+                  {Math.round(activeAdjust.scale * 100)}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min={MIN_COMPARE_SCALE}
+                max={MAX_COMPARE_SCALE}
+                step={0.01}
+                value={activeAdjust.scale}
+                onChange={(e) =>
+                  updateActiveAdjust({ scale: Number(e.target.value) })
+                }
+                className="w-full accent-violet-500"
+              />
+              <p className="text-[11px] text-zinc-500 mt-1.5">
                 Pinch with two fingers, drag to pan, or use the mouse wheel.
                 Overlay mode makes alignment easiest.
               </p>
-            </div>
-          )}
+            </label>
 
-          {settings.adjustMode && (
-            <div className="space-y-4">
-              <label className="block text-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-zinc-300">Brightness</span>
-                  <span className="text-xs text-zinc-500">
-                    {activeAdjust.brightness}%
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={MIN_BRIGHTNESS}
-                  max={MAX_BRIGHTNESS}
-                  value={activeAdjust.brightness}
-                  onChange={(e) =>
-                    updateActiveAdjust({ brightness: Number(e.target.value) })
-                  }
-                  className="w-full accent-violet-500"
-                />
-              </label>
-
-              <label className="block text-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-zinc-300">Contrast</span>
-                  <span className="text-xs text-zinc-500">
-                    {activeAdjust.contrast}%
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={MIN_CONTRAST}
-                  max={MAX_CONTRAST}
-                  value={activeAdjust.contrast}
-                  onChange={(e) =>
-                    updateActiveAdjust({ contrast: Number(e.target.value) })
-                  }
-                  className="w-full accent-violet-500"
-                />
-              </label>
-
-              {(settings.overlayMode || showOverlayControls) && (
-                <label className="block text-sm">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-zinc-300">Overlay opacity</span>
-                    <span className="text-xs text-zinc-500">
-                      {settings.overlayOpacity}%
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    value={settings.overlayOpacity}
-                    onChange={(e) =>
-                      onChange({ overlayOpacity: Number(e.target.value) })
-                    }
-                    className="w-full accent-violet-500"
-                  />
-                </label>
-              )}
-
-              {settings.blurAmount > 0 && (
-                <label className="block text-sm">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-zinc-300">Soft blur</span>
-                    <span className="text-xs text-zinc-500">
-                      {settings.blurAmount}px
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={12}
-                    value={settings.blurAmount}
-                    onChange={(e) =>
-                      onChange({ blurAmount: Number(e.target.value) })
-                    }
-                    className="w-full accent-violet-500"
-                  />
-                </label>
-              )}
-            </div>
-          )}
-
-          {canRemoveBg && (
-            <div className="flex flex-wrap gap-2 border-t border-zinc-800 pt-3">
-              <button
-                type="button"
-                disabled={bgBusy}
-                onClick={handleCutoutActive}
-                className="text-xs px-3 py-1.5 rounded-lg border border-violet-500/40 text-violet-200 hover:bg-violet-500/10 disabled:opacity-40"
-              >
-                {bgBusy && removingLayer === settings.activeLayer
-                  ? 'Removing…'
-                  : activeBgRemoved
-                    ? `Restore ${settings.activeLayer}`
-                    : `Cutout ${settings.activeLayer}`}
-              </button>
-              <button
-                type="button"
-                disabled={bgBusy}
-                onClick={handleCutoutBoth}
-                className="text-xs px-3 py-1.5 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800 disabled:opacity-40"
-              >
-                {bgBusy && removingLayer === 'both'
-                  ? 'Removing both…'
-                  : beforeBgRemoved && afterBgRemoved
-                    ? 'Restore both cutouts'
-                    : 'Cutout both'}
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  onChange(
-                    patchLayerAdjust(settings, settings.activeLayer, {
-                      ...DEFAULT_IMAGE_ADJUST,
-                    })
-                  )
+            <label className="block text-sm">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-zinc-300">Brightness</span>
+                <span className="text-xs text-zinc-500">
+                  {activeAdjust.brightness}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min={MIN_BRIGHTNESS}
+                max={MAX_BRIGHTNESS}
+                value={activeAdjust.brightness}
+                onChange={(e) =>
+                  updateActiveAdjust({ brightness: Number(e.target.value) })
                 }
-                className="text-xs px-3 py-1.5 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800"
-              >
-                Reset {settings.activeLayer}
-              </button>
-              {showOverlayControls && !settings.overlayMode && (
-                <button
-                  type="button"
-                  onClick={onResetSlider}
-                  className="text-xs px-3 py-1.5 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800"
-                >
-                  Center slider
-                </button>
-              )}
-            </div>
-          )}
+                className="w-full accent-violet-500"
+              />
+            </label>
 
-          <div className="flex flex-wrap gap-2">
-            {!canRemoveBg && (
+            <label className="block text-sm">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-zinc-300">Contrast</span>
+                <span className="text-xs text-zinc-500">
+                  {activeAdjust.contrast}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min={MIN_CONTRAST}
+                max={MAX_CONTRAST}
+                value={activeAdjust.contrast}
+                onChange={(e) =>
+                  updateActiveAdjust({ contrast: Number(e.target.value) })
+                }
+                className="w-full accent-violet-500"
+              />
+            </label>
+
+            {(settings.overlayMode || showOverlayControls) && (
+              <label className="block text-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-zinc-300">Overlay opacity</span>
+                  <span className="text-xs text-zinc-500">
+                    {settings.overlayOpacity}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={settings.overlayOpacity}
+                  onChange={(e) =>
+                    onChange({ overlayOpacity: Number(e.target.value) })
+                  }
+                  className="w-full accent-violet-500"
+                />
+              </label>
+            )}
+
+            {settings.blurAmount > 0 && (
+              <label className="block text-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-zinc-300">Soft blur</span>
+                  <span className="text-xs text-zinc-500">
+                    {settings.blurAmount}px
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={12}
+                  value={settings.blurAmount}
+                  onChange={(e) =>
+                    onChange({ blurAmount: Number(e.target.value) })
+                  }
+                  className="w-full accent-violet-500"
+                />
+              </label>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2 border-t border-zinc-800 pt-3">
+            {canRemoveBg && (
               <>
                 <button
                   type="button"
-                  onClick={() =>
-                    onChange(
-                      patchLayerAdjust(settings, settings.activeLayer, {
-                        ...DEFAULT_IMAGE_ADJUST,
-                      })
-                    )
-                  }
-                  className="text-xs px-3 py-1.5 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                  disabled={bgBusy}
+                  onClick={handleCutoutActive}
+                  className="text-xs px-3 py-1.5 rounded-lg border border-violet-500/40 text-violet-200 hover:bg-violet-500/10 disabled:opacity-40"
                 >
-                  Reset {settings.activeLayer}
+                  {bgBusy && removingLayer === settings.activeLayer
+                    ? 'Removing…'
+                    : activeBgRemoved
+                      ? `Restore ${settings.activeLayer}`
+                      : `Cutout ${settings.activeLayer}`}
                 </button>
-                {showOverlayControls && !settings.overlayMode && (
-                  <button
-                    type="button"
-                    onClick={onResetSlider}
-                    className="text-xs px-3 py-1.5 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800"
-                  >
-                    Center slider
-                  </button>
-                )}
+                <button
+                  type="button"
+                  disabled={bgBusy}
+                  onClick={handleCutoutBoth}
+                  className="text-xs px-3 py-1.5 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800 disabled:opacity-40"
+                >
+                  {bgBusy && removingLayer === 'both'
+                    ? 'Removing both…'
+                    : beforeBgRemoved && afterBgRemoved
+                      ? 'Restore both cutouts'
+                      : 'Cutout both'}
+                </button>
               </>
+            )}
+            <button
+              type="button"
+              onClick={() =>
+                onChange(
+                  patchLayerAdjust(settings, settings.activeLayer, {
+                    ...DEFAULT_IMAGE_ADJUST,
+                  })
+                )
+              }
+              className="text-xs px-3 py-1.5 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+            >
+              Reset {settings.activeLayer}
+            </button>
+            {showOverlayControls && !settings.overlayMode && (
+              <button
+                type="button"
+                onClick={onResetSlider}
+                className="text-xs px-3 py-1.5 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+              >
+                Center slider
+              </button>
             )}
             <button
               type="button"

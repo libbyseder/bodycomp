@@ -99,14 +99,14 @@ export default function BeforeAfterSlider({
   }, [updateFromClientX])
 
   const startDrag = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (settings.overlayMode || settings.alignMode) return
+    if (settings.overlayMode || settings.adjustMode) return
     draggingRef.current = true
     event.currentTarget.setPointerCapture(event.pointerId)
     updateFromClientX(event.clientX)
   }
 
   const { attach } = usePinchPanZoom({
-    enabled: settings.alignMode && Boolean(onSettingsChange),
+    enabled: settings.adjustMode && Boolean(onSettingsChange),
     getAdjust: () => getLayerAdjust(settingsRef.current, settingsRef.current.activeLayer),
     onAdjust: (patch: Partial<ImageAdjustSettings>) => {
       const current = settingsRef.current
@@ -116,11 +116,11 @@ export default function BeforeAfterSlider({
 
   useEffect(() => {
     return attach(containerRef.current)
-  }, [attach, settings.alignMode])
+  }, [attach, settings.adjustMode])
 
   // Double-tap / double-click resets the active layer (GainFrame-style)
   const handleDoubleReset = () => {
-    if (!settings.alignMode || !onSettingsChange) return
+    if (!settings.adjustMode || !onSettingsChange) return
     const now = Date.now()
     if (now - lastTapRef.current < 320) {
       onSettingsChange(
@@ -159,7 +159,7 @@ export default function BeforeAfterSlider({
       ref={containerRef}
       onPointerDown={handleDoubleReset}
       className={`relative aspect-[3/4] overflow-hidden rounded-2xl border border-zinc-700 select-none touch-none ${
-        settings.alignMode ? 'cursor-grab active:cursor-grabbing ring-1 ring-violet-500/40' : ''
+        settings.adjustMode ? 'cursor-grab active:cursor-grabbing ring-1 ring-violet-500/40' : ''
       } ${className}`}
       style={compareBackgroundStyle(settings.background)}
     >
@@ -199,7 +199,7 @@ export default function BeforeAfterSlider({
         </div>
       )}
 
-      {!settings.overlayMode && !settings.alignMode && (
+      {!settings.overlayMode && !settings.adjustMode && (
         <div
           className="absolute inset-y-0 z-10 flex w-10 -translate-x-1/2 cursor-ew-resize items-center justify-center"
           style={{ left: `${position}%` }}
@@ -218,9 +218,9 @@ export default function BeforeAfterSlider({
         </div>
       )}
 
-      {settings.alignMode && (
+      {settings.adjustMode && (
         <span className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-lg bg-violet-600/90 px-2.5 py-1 text-[11px] font-medium text-white shadow-lg">
-          Aligning {settings.activeLayer} · double-tap to reset position
+          Adjusting {settings.activeLayer} · double-tap to reset position
         </span>
       )}
 

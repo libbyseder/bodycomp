@@ -76,10 +76,10 @@ function SplitPhotoPane({
   settingsRef.current = settings
   const lastTapRef = useRef(0)
 
-  const alignThisLayer = settings.alignMode && settings.activeLayer === layer
+  const adjustThisLayer = settings.adjustMode && settings.activeLayer === layer
 
   const { attach } = usePinchPanZoom({
-    enabled: alignThisLayer,
+    enabled: adjustThisLayer,
     getAdjust: () => getLayerAdjust(settingsRef.current, layer),
     onAdjust: (patch: Partial<ImageAdjustSettings>) => {
       onSettingsChange(patchLayerAdjust(settingsRef.current, layer, patch))
@@ -88,16 +88,16 @@ function SplitPhotoPane({
 
   useEffect(() => {
     return attach(paneRef.current)
-  }, [attach, alignThisLayer])
+  }, [attach, adjustThisLayer])
 
   const selectLayer = () => {
-    if (settings.alignMode && settings.activeLayer !== layer) {
+    if (settings.adjustMode && settings.activeLayer !== layer) {
       onSettingsChange({ activeLayer: layer })
     }
   }
 
   const handleDoubleReset = () => {
-    if (!alignThisLayer) return
+    if (!adjustThisLayer) return
     const now = Date.now()
     if (now - lastTapRef.current < 320) {
       const current = getLayerAdjust(settingsRef.current, layer)
@@ -117,7 +117,7 @@ function SplitPhotoPane({
   return (
     <article
       className={`overflow-hidden rounded-2xl border ${
-        alignThisLayer ? 'border-violet-500/60 ring-1 ring-violet-500/30' : 'border-zinc-700'
+        adjustThisLayer ? 'border-violet-500/60 ring-1 ring-violet-500/30' : 'border-zinc-700'
       }`}
       style={compareBackgroundStyle(settings.background)}
       onPointerDown={selectLayer}
@@ -127,17 +127,12 @@ function SplitPhotoPane({
           {caption} · {formatPhotoDate(photo.date)}
           {displayUrl ? ' · cutout' : ''}
         </p>
-        {measurementSummary ? (
-          <p className="text-xs text-zinc-500 mt-0.5">{measurementSummary}</p>
-        ) : (
-          <p className="text-xs text-zinc-600 mt-0.5">No scale log this day</p>
-        )}
       </div>
       <div
         ref={paneRef}
         onPointerDown={handleDoubleReset}
         className={`relative aspect-[3/4] touch-none ${
-          alignThisLayer ? 'cursor-grab active:cursor-grabbing' : ''
+          adjustThisLayer ? 'cursor-grab active:cursor-grabbing' : ''
         }`}
       >
         <ComparePhotoImage
@@ -148,7 +143,7 @@ function SplitPhotoPane({
           layer={layer}
           forceContain
         />
-        {alignThisLayer && (
+        {adjustThisLayer && (
           <span className="absolute bottom-2 left-1/2 z-10 -translate-x-1/2 rounded-md bg-violet-600/90 px-2 py-0.5 text-[10px] font-medium text-white">
             Pinch / drag · double-tap reset
           </span>
@@ -161,7 +156,12 @@ function SplitPhotoPane({
           </div>
         )}
       </div>
-      <div className="p-3 bg-zinc-950/90">
+      <div className="p-3 bg-zinc-950/90 space-y-2">
+        {measurementSummary ? (
+          <p className="text-xs text-zinc-400">{measurementSummary}</p>
+        ) : (
+          <p className="text-xs text-zinc-600">No scale log this day</p>
+        )}
         <ProgressPhotoAnalysis
           photo={photo}
           measurement={measurement ?? undefined}
@@ -542,7 +542,7 @@ export default function ProgressPhotoCompare({
         <div>
           <h2 className="text-lg font-semibold">Compare</h2>
           <p className="text-sm text-zinc-400 mt-1">
-            Align, match lighting, cut out backgrounds, then tap Done to save.
+            Adjust zoom and lighting, cut out backgrounds, then tap Done to save.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -631,33 +631,6 @@ export default function ProgressPhotoCompare({
         </p>
       ) : (
         <>
-          {metricDeltas.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
-              {metricDeltas.map((metric) => (
-                <div
-                  key={metric.label}
-                  className="bg-zinc-800/70 border border-zinc-700 rounded-2xl px-4 py-3"
-                >
-                  <p className="text-xs text-zinc-400 uppercase tracking-wide">
-                    {metric.label}
-                  </p>
-                  <div className="flex items-center gap-2 mt-1 text-sm">
-                    <span className="text-zinc-300">{metric.before}</span>
-                    <ArrowRight size={14} className="text-zinc-500 shrink-0" />
-                    <span className="text-white font-medium">{metric.after}</span>
-                  </div>
-                  {metric.delta && (
-                    <p className="text-xs text-violet-300 mt-1">{metric.delta}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-zinc-500 mb-5">
-              No scale measurements on these dates yet — photos still compare below.
-            </p>
-          )}
-
           {(() => {
             const beforeUrl = getPhotoUrl(pair.before.storage_path)
             const afterUrl = getPhotoUrl(pair.after.storage_path)
@@ -712,6 +685,37 @@ export default function ProgressPhotoCompare({
               hasSavedEdits,
             }
 
+            const scaleMetrics = (
+              <div className="space-y-3">
+                {metricDeltas.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {metricDeltas.map((metric) => (
+                      <div
+                        key={metric.label}
+                        className="bg-zinc-800/70 border border-zinc-700 rounded-2xl px-4 py-3"
+                      >
+                        <p className="text-xs text-zinc-400 uppercase tracking-wide">
+                          {metric.label}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1 text-sm">
+                          <span className="text-zinc-300">{metric.before}</span>
+                          <ArrowRight size={14} className="text-zinc-500 shrink-0" />
+                          <span className="text-white font-medium">{metric.after}</span>
+                        </div>
+                        {metric.delta && (
+                          <p className="text-xs text-violet-300 mt-1">{metric.delta}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-zinc-500">
+                    No scale measurements on these dates yet.
+                  </p>
+                )}
+              </div>
+            )
+
             if (viewMode === 'slider') {
               return (
                 <div className="max-w-lg mx-auto space-y-4">
@@ -728,6 +732,7 @@ export default function ProgressPhotoCompare({
                     resetToken={sliderResetToken}
                     removingLayer={removingLayer}
                   />
+                  {scaleMetrics}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {[leftMeasurement, rightMeasurement].map((measurement, index) => {
                       const photo = index === 0 ? leftPhoto : rightPhoto
@@ -743,7 +748,9 @@ export default function ProgressPhotoCompare({
                           </p>
                           {summary ? (
                             <p className="text-[11px] text-zinc-500 mb-2">{summary}</p>
-                          ) : null}
+                          ) : (
+                            <p className="text-[11px] text-zinc-600 mb-2">No scale log this day</p>
+                          )}
                           <ProgressPhotoAnalysis
                             photo={photo}
                             measurement={measurement ?? undefined}
@@ -796,6 +803,7 @@ export default function ProgressPhotoCompare({
                     }
                   />
                 </div>
+                {scaleMetrics}
               </div>
             )
           })()}

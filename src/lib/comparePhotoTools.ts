@@ -28,9 +28,10 @@ export interface CompareToolSettings {
    * Always recommended once cutouts or non-cover backdrops are active.
    */
   fitContain: boolean
-  /** When true, single-finger drag pans the selected layer instead of moving the slider */
-  alignMode: boolean
-  /** Lighting / brightness panel open */
+  /**
+   * Adjust panel open: zoom/pan alignment + brightness/contrast for the active layer.
+   * When true, single-finger drag pans the selected layer instead of moving the slider.
+   */
   adjustMode: boolean
   /** Background picker sheet open */
   backgroundPickerOpen: boolean
@@ -74,7 +75,6 @@ export const DEFAULT_COMPARE_TOOLS: CompareToolSettings = {
   // Start with contain so stage background is always visible (GainFrame-style)
   background: 'dark',
   fitContain: true,
-  alignMode: false,
   adjustMode: false,
   backgroundPickerOpen: false,
   activeLayer: 'before',
@@ -135,13 +135,12 @@ export function isDefaultImageAdjust(adjust: ImageAdjustSettings): boolean {
 }
 
 export function isEditingTools(settings: CompareToolSettings): boolean {
-  return settings.alignMode || settings.adjustMode || settings.backgroundPickerOpen
+  return settings.adjustMode || settings.backgroundPickerOpen
 }
 
 /** Exit edit panels but keep applied transforms / lighting / backdrop. */
 export function doneEditingPatch(): Partial<CompareToolSettings> {
   return {
-    alignMode: false,
     adjustMode: false,
     backgroundPickerOpen: false,
   }
@@ -266,7 +265,6 @@ export function applyPairEdits(edits: ComparePairEdits): CompareToolSettings {
     beforeAdjust: { ...DEFAULT_IMAGE_ADJUST, ...edits.beforeAdjust },
     afterAdjust: { ...DEFAULT_IMAGE_ADJUST, ...edits.afterAdjust },
     // Always leave edit panels closed when loading a saved pair
-    alignMode: false,
     adjustMode: false,
     backgroundPickerOpen: false,
   }
