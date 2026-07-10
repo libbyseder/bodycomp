@@ -5,7 +5,6 @@ import {
   compareBackgroundStyle,
   getLayerAdjust,
   patchLayerAdjust,
-  DEFAULT_IMAGE_ADJUST,
 } from '../lib/comparePhotoTools'
 import { usePinchPanZoom } from '../hooks/usePinchPanZoom'
 import ComparePhotoImage from './ComparePhotoImage'
@@ -43,13 +42,15 @@ export default function BeforeAfterSlider({
 }: BeforeAfterSliderProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [internalPosition, setInternalPosition] = useState(50)
-  const draggingRef = useRef(false)
+  const draggingSliderRef = useRef(false)
+  const activePointerIdRef = useRef<number | null>(null)
   const settingsRef = useRef(settings)
   settingsRef.current = settings
   const lastTapRef = useRef(0)
 
   const position = sliderPosition ?? internalPosition
   const forceContain = Boolean(beforeDisplayUrl || afterDisplayUrl || settings.fitContain)
+  const canScrubSlider = !settings.overlayMode && !settings.adjustMode
 
   const setPosition = useCallback(
     (next: number) => {
@@ -77,32 +78,63 @@ export default function BeforeAfterSlider({
     [setPosition]
   )
 
+  // Global move/up while scrubbing so the handle doesn't lose the drag
   useEffect(() => {
-    const stopDragging = () => {
-      draggingRef.current = false
+    if (!canScrubSlider) {
+      draggingSliderRef.current = false
+      activePointerIdRef.current = null
+      return
     }
 
     const onPointerMove = (event: PointerEvent) => {
-      if (!draggingRef.current) return
+      if (!draggingSliderRef.current) return
+      if (
+        activePointerIdRef.current != null &&
+        event.pointerId !== activePointerIdRef.current
+      ) {
+        return
+      }
+      event.preventDefault()
       updateFromClientX(event.clientX)
     }
 
+    const stopDragging = (event: PointerEvent) => {
+      if (
+        activePointerIdRef.current != null &&
+        event.pointerId !== activePointerIdRef.current
+      ) {
+        return
+      }
+      draggingSliderRef.current = false
+      activePointerIdRef.current = null
+    }
+
+    window.addEventListener('pointermove', onPointerMove, { passive: false })
     window.addEventListener('pointerup', stopDragging)
     window.addEventListener('pointercancel', stopDragging)
-    window.addEventListener('pointermove', onPointerMove)
 
     return () => {
+      window.removeEventListener('pointermove', onPointerMove)
       window.removeEventListener('pointerup', stopDragging)
       window.removeEventListener('pointercancel', stopDragging)
-      window.removeEventListener('pointermove', onPointerMove)
     }
-  }, [updateFromClientX])
+  }, [canScrubSlider, updateFromClientX])
 
-  const startDrag = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (settings.overlayMode || settings.adjustMode) return
-    draggingRef.current = true
-    event.currentTarget.setPointerCapture(event.pointerId)
+  const startSliderScrub = (event: React.PointerEvent<HTMLElement>) => {
+    if (!canScrubSlider) return
+    // Only primary button / touch / pen
+    if (event.pointerType === 'mouse' && event.button !== 0) return
+
+    draggingSliderRef.current = true
+    activePointerIdRef.current = event.pointerId
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId)
+    } catch {
+      /* ignore */
+    }
     updateFromClientX(event.clientX)
+    event.preventDefault()
+    event.stopPropagation()
   }
 
   const { attach } = usePinchPanZoom({
@@ -115,26 +147,28 @@ export default function BeforeAfterSlider({
   })
 
   useEffect(() => {
+    // Only attach pinch/pan while adjusting so it never steals slider drags
+    if (!settings.adjustMode) return
     return attach(containerRef.current)
   }, [attach, settings.adjustMode])
 
-  // Double-tap / double-click resets the active layer (GainFrame-style)
-  const handleDoubleReset = () => {
+  // Double-tap resets active layer position while adjusting
+  const handleDoubleReset = (event: React.PointerEvent) => {
     if (!settings.adjustMode || !onSettingsChange) return
     const now = Date.now()
     if (now - lastTapRef.current < 320) {
+      const layer = settingsRef.current.activeLayer
+      const current = getLayerAdjust(settingsRef.current, layer)
       onSettingsChange(
-        patchLayerAdjust(settingsRef.current, settingsRef.current.activeLayer, {
-          ...DEFAULT_IMAGE_ADJUST,
-          brightness: getLayerAdjust(settingsRef.current, settingsRef.current.activeLayer)
-            .brightness,
-          contrast: getLayerAdjust(settingsRef.current, settingsRef.current.activeLayer)
-            .contrast,
+        patchLayerAdjust(settingsRef.current, layer, {
           scale: 1,
           offsetX: 0,
           offsetY: 0,
+          brightness: current.brightness,
+          contrast: current.contrast,
         })
       )
+      event.preventDefault()
     }
     lastTapRef.current = now
   }
@@ -154,15 +188,36 @@ export default function BeforeAfterSlider({
     removingLayer === 'before' ||
     removingLayer === 'after'
 
+  // Classic wipe: before is always fully opaque. Opacity only softens in overlay mode.
+  const beforeOpacity = settings.overlayMode ? settings.overlayOpacity / 100 : 1
+
   return (
     <div
       ref={containerRef}
-      onPointerDown={handleDoubleReset}
+      onPointerDown={(event) => {
+        if (settings.adjustMode) {
+          handleDoubleReset(event)
+          return
+        }
+        if (canScrubSlider) {
+          startSliderScrub(event)
+        }
+      }}
       className={`relative aspect-[3/4] overflow-hidden rounded-2xl border border-zinc-700 select-none touch-none ${
-        settings.adjustMode ? 'cursor-grab active:cursor-grabbing ring-1 ring-violet-500/40' : ''
+        settings.adjustMode
+          ? 'cursor-grab active:cursor-grabbing ring-1 ring-violet-500/40'
+          : canScrubSlider
+            ? 'cursor-ew-resize'
+            : ''
       } ${className}`}
       style={compareBackgroundStyle(settings.background)}
+      role={canScrubSlider ? 'slider' : undefined}
+      aria-label={canScrubSlider ? 'Drag to compare before and after' : undefined}
+      aria-valuemin={canScrubSlider ? 0 : undefined}
+      aria-valuemax={canScrubSlider ? 100 : undefined}
+      aria-valuenow={canScrubSlider ? Math.round(position) : undefined}
     >
+      {/* Base layer: after (full frame) */}
       <ComparePhotoImage
         url={displayAfterUrl}
         displayUrl={visualAfterDisplay}
@@ -173,19 +228,25 @@ export default function BeforeAfterSlider({
       />
 
       {settings.overlayMode ? (
+        /* Overlay mode: before blended on top */
         <ComparePhotoImage
           url={displayBeforeUrl}
           displayUrl={visualBeforeDisplay}
           alt={displayBeforeLabel}
           settings={settings}
           layer={visualBeforeLayer}
-          opacity={settings.overlayOpacity / 100}
+          opacity={beforeOpacity}
           forceContain={forceContain}
         />
       ) : (
+        /* Slider wipe: solid before clipped from the left */
         <div
-          className="absolute inset-0"
-          style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}
+          className="absolute inset-0 z-[1] overflow-hidden"
+          style={{
+            // Width-based clip is more reliable than inset() across mobile browsers
+            clipPath: `inset(0 ${100 - position}% 0 0)`,
+            WebkitClipPath: `inset(0 ${100 - position}% 0 0)`,
+          }}
         >
           <ComparePhotoImage
             url={displayBeforeUrl}
@@ -193,25 +254,20 @@ export default function BeforeAfterSlider({
             alt={displayBeforeLabel}
             settings={settings}
             layer={visualBeforeLayer}
-            opacity={settings.overlayOpacity / 100}
+            opacity={1}
             forceContain={forceContain}
           />
         </div>
       )}
 
-      {!settings.overlayMode && !settings.adjustMode && (
+      {/* Divider + handle (visual only; whole stage is draggable) */}
+      {canScrubSlider && (
         <div
-          className="absolute inset-y-0 z-10 flex w-10 -translate-x-1/2 cursor-ew-resize items-center justify-center"
+          className="pointer-events-none absolute inset-y-0 z-10 flex w-12 -translate-x-1/2 items-center justify-center"
           style={{ left: `${position}%` }}
-          onPointerDown={startDrag}
-          role="slider"
-          aria-label="Drag to compare before and after"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={Math.round(position)}
         >
-          <div className="flex h-full w-1 items-center justify-center bg-white/90 shadow-[0_0_12px_rgba(0,0,0,0.45)]">
-            <span className="absolute flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-violet-500 text-white shadow-lg">
+          <div className="flex h-full w-0.5 items-center justify-center bg-white shadow-[0_0_12px_rgba(0,0,0,0.45)]">
+            <span className="absolute flex h-11 w-11 items-center justify-center rounded-full border-2 border-white bg-violet-500 text-white shadow-lg">
               <GripVertical size={16} />
             </span>
           </div>
@@ -221,6 +277,12 @@ export default function BeforeAfterSlider({
       {settings.adjustMode && (
         <span className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-lg bg-violet-600/90 px-2.5 py-1 text-[11px] font-medium text-white shadow-lg">
           Adjusting {settings.activeLayer} · double-tap to reset position
+        </span>
+      )}
+
+      {canScrubSlider && (
+        <span className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-lg bg-black/55 px-2.5 py-1 text-[11px] font-medium text-zinc-200">
+          Drag to reveal · {Math.round(position)}%
         </span>
       )}
 
@@ -235,11 +297,11 @@ export default function BeforeAfterSlider({
         </div>
       )}
 
-      <span className="absolute left-3 top-3 z-20 rounded-lg bg-black/60 px-2 py-1 text-xs font-medium text-white">
+      <span className="pointer-events-none absolute left-3 top-3 z-20 rounded-lg bg-black/60 px-2 py-1 text-xs font-medium text-white">
         {displayBeforeLabel}
         {visualBeforeDisplay ? ' · cut' : ''}
       </span>
-      <span className="absolute right-3 top-3 z-20 rounded-lg bg-black/60 px-2 py-1 text-xs font-medium text-white">
+      <span className="pointer-events-none absolute right-3 top-3 z-20 rounded-lg bg-black/60 px-2 py-1 text-xs font-medium text-white">
         {displayAfterLabel}
         {visualAfterDisplay ? ' · cut' : ''}
       </span>

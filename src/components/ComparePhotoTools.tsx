@@ -414,7 +414,7 @@ export default function ComparePhotoTools({
               />
             </label>
 
-            {(settings.overlayMode || showOverlayControls) && (
+            {settings.overlayMode && (
               <label className="block text-sm">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-zinc-300">Overlay opacity</span>
@@ -432,6 +432,9 @@ export default function ComparePhotoTools({
                   }
                   className="w-full accent-violet-500"
                 />
+                <p className="text-[11px] text-zinc-500 mt-1.5">
+                  Only used in Overlay mode. Slider mode always shows solid photos.
+                </p>
               </label>
             )}
 
