@@ -1,18 +1,18 @@
-import { Home, LineChart, List, Settings } from 'lucide-react'
+import { Camera, Home, LineChart, List } from 'lucide-react'
 import type { TabId } from '../types/navigation'
-import { TAB_LABELS } from '../types/navigation'
+import { BOTTOM_TABS, TAB_LABELS } from '../types/navigation'
 
 interface BottomTabBarProps {
   activeTab: TabId
   onTabChange: (tab: TabId) => void
 }
 
-const TABS: { id: TabId; icon: typeof Home }[] = [
-  { id: 'home', icon: Home },
-  { id: 'trends', icon: LineChart },
-  { id: 'log', icon: List },
-  { id: 'settings', icon: Settings },
-]
+const TAB_ICONS: Record<(typeof BOTTOM_TABS)[number], typeof Home> = {
+  home: Home,
+  trends: LineChart,
+  log: List,
+  photos: Camera,
+}
 
 export default function BottomTabBar({ activeTab, onTabChange }: BottomTabBarProps) {
   return (
@@ -22,7 +22,8 @@ export default function BottomTabBar({ activeTab, onTabChange }: BottomTabBarPro
       aria-label="Main navigation"
     >
       <div className="max-w-5xl mx-auto flex items-stretch">
-        {TABS.map(({ id, icon: Icon }) => {
+        {BOTTOM_TABS.map((id) => {
+          const Icon = TAB_ICONS[id]
           const isActive = activeTab === id
           return (
             <button
@@ -35,7 +36,11 @@ export default function BottomTabBar({ activeTab, onTabChange }: BottomTabBarPro
               aria-current={isActive ? 'page' : undefined}
             >
               <Icon size={22} strokeWidth={isActive ? 2.25 : 1.75} />
-              <span className={`text-[10px] sm:text-xs font-medium ${isActive ? 'text-cyan-400' : ''}`}>
+              <span
+                className={`text-[10px] sm:text-xs font-medium ${
+                  isActive ? 'text-cyan-400' : ''
+                }`}
+              >
                 {TAB_LABELS[id]}
               </span>
             </button>

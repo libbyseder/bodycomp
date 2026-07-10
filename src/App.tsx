@@ -17,6 +17,7 @@ import QuickLogFab from './components/QuickLogFab'
 import HomeTab from './components/HomeTab'
 import TrendsTab from './components/TrendsTab'
 import LogTab from './components/LogTab'
+import PhotosTab from './components/PhotosTab'
 import SettingsTab from './components/SettingsTab'
 import { useMeasurements } from './hooks/useMeasurements'
 import { useProgressPhotos } from './hooks/useProgressPhotos'
@@ -215,12 +216,19 @@ function AuthenticatedDashboard() {
           <LogTab
             measurements={safeMeasurements}
             profile={safeProfile}
-            photos={safePhotos}
-            photosLoading={photosLoading}
             onDelete={deleteMeasurement}
             onRefresh={refetch}
-            onRefreshPhotos={refetchPhotos}
             onQuickLog={() => setShowQuickLog(true)}
+          />
+        )}
+
+        {activeTab === 'photos' && !dataLoading && (
+          <PhotosTab
+            photos={safePhotos}
+            measurements={safeMeasurements}
+            profile={safeProfile}
+            photosLoading={photosLoading}
+            onRefreshPhotos={refetchPhotos}
           />
         )}
 
