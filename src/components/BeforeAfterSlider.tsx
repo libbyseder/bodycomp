@@ -50,7 +50,8 @@ export default function BeforeAfterSlider({
 
   const position = sliderPosition ?? internalPosition
   const forceContain = Boolean(beforeDisplayUrl || afterDisplayUrl || settings.fitContain)
-  const canScrubSlider = !settings.overlayMode && !settings.adjustMode
+  // Slider stays available whenever we're not in Adjust (pan/zoom) mode — including Overlay
+  const canScrubSlider = !settings.adjustMode
 
   const setPosition = useCallback(
     (next: number) => {
@@ -78,7 +79,6 @@ export default function BeforeAfterSlider({
     [setPosition]
   )
 
-  // Global move/up while scrubbing so the handle doesn't lose the drag
   useEffect(() => {
     if (!canScrubSlider) {
       draggingSliderRef.current = false
@@ -122,7 +122,6 @@ export default function BeforeAfterSlider({
 
   const startSliderScrub = (event: React.PointerEvent<HTMLElement>) => {
     if (!canScrubSlider) return
-    // Only primary button / touch / pen
     if (event.pointerType === 'mouse' && event.button !== 0) return
 
     draggingSliderRef.current = true
@@ -147,12 +146,10 @@ export default function BeforeAfterSlider({
   })
 
   useEffect(() => {
-    // Only attach pinch/pan while adjusting so it never steals slider drags
     if (!settings.adjustMode) return
     return attach(containerRef.current)
   }, [attach, settings.adjustMode])
 
-  // Double-tap resets active layer position while adjusting
   const handleDoubleReset = (event: React.PointerEvent) => {
     if (!settings.adjustMode || !onSettingsChange) return
     const now = Date.now()
@@ -188,7 +185,7 @@ export default function BeforeAfterSlider({
     removingLayer === 'before' ||
     removingLayer === 'after'
 
-  // Classic wipe: before is always fully opaque. Opacity only softens in overlay mode.
+  // Wipe always. Overlay softens the before layer so you can still drag the divider.
   const beforeOpacity = settings.overlayMode ? settings.overlayOpacity / 100 : 1
 
   return (
@@ -199,16 +196,12 @@ export default function BeforeAfterSlider({
           handleDoubleReset(event)
           return
         }
-        if (canScrubSlider) {
-          startSliderScrub(event)
-        }
+        startSliderScrub(event)
       }}
       className={`relative aspect-[3/4] overflow-hidden rounded-2xl border border-zinc-700 select-none touch-none ${
         settings.adjustMode
           ? 'cursor-grab active:cursor-grabbing ring-1 ring-violet-500/40'
-          : canScrubSlider
-            ? 'cursor-ew-resize'
-            : ''
+          : 'cursor-ew-resize'
       } ${className}`}
       style={compareBackgroundStyle(settings.background)}
       role={canScrubSlider ? 'slider' : undefined}
@@ -227,8 +220,14 @@ export default function BeforeAfterSlider({
         forceContain={forceContain}
       />
 
-      {settings.overlayMode ? (
-        /* Overlay mode: before blended on top */
+      {/* Before layer: always clipped by slider; opacity softens when Overlay is on */}
+      <div
+        className="absolute inset-0 z-[1] overflow-hidden"
+        style={{
+          clipPath: `inset(0 ${100 - position}% 0 0)`,
+          WebkitClipPath: `inset(0 ${100 - position}% 0 0)`,
+        }}
+      >
         <ComparePhotoImage
           url={displayBeforeUrl}
           displayUrl={visualBeforeDisplay}
@@ -238,27 +237,7 @@ export default function BeforeAfterSlider({
           opacity={beforeOpacity}
           forceContain={forceContain}
         />
-      ) : (
-        /* Slider wipe: solid before clipped from the left */
-        <div
-          className="absolute inset-0 z-[1] overflow-hidden"
-          style={{
-            // Width-based clip is more reliable than inset() across mobile browsers
-            clipPath: `inset(0 ${100 - position}% 0 0)`,
-            WebkitClipPath: `inset(0 ${100 - position}% 0 0)`,
-          }}
-        >
-          <ComparePhotoImage
-            url={displayBeforeUrl}
-            displayUrl={visualBeforeDisplay}
-            alt={displayBeforeLabel}
-            settings={settings}
-            layer={visualBeforeLayer}
-            opacity={1}
-            forceContain={forceContain}
-          />
-        </div>
-      )}
+      </div>
 
       {/* Divider + handle (visual only; whole stage is draggable) */}
       {canScrubSlider && (
@@ -283,6 +262,7 @@ export default function BeforeAfterSlider({
       {canScrubSlider && (
         <span className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-lg bg-black/55 px-2.5 py-1 text-[11px] font-medium text-zinc-200">
           Drag to reveal · {Math.round(position)}%
+          {settings.overlayMode ? ' · overlay' : ''}
         </span>
       )}
 

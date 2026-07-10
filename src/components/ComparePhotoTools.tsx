@@ -433,7 +433,8 @@ export default function ComparePhotoTools({
                   className="w-full accent-violet-500"
                 />
                 <p className="text-[11px] text-zinc-500 mt-1.5">
-                  Only used in Overlay mode. Slider mode always shows solid photos.
+                  Softens the before side of the wipe so after shows through. The
+                  slider still works.
                 </p>
               </label>
             )}
